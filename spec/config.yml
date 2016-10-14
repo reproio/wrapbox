@@ -1,0 +1,9 @@
+default:
+  cluster: ecsr-test
+  auto_scaling_group: ecsr-test
+  region: ap-northeast-1
+  container_definition:
+    image: joker1007/ecsr
+    cpu: 512
+    memory: 1024
+    essential: true

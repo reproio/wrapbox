@@ -7,14 +7,14 @@ module Ecsr
     end
 
     def load_yaml(yaml_file)
-      configs = YAML.load_file(yaml_file)
+      configs = YAML.load(ERB.new(File.read(yaml_file)).result)
       configs.each do |name, configuration|
         load_config(name, configuration.merge("name" => name))
       end
     end
 
     def load_config(name, configuration)
-      @configs[name.to_sym] = configuration
+      @configs[name.to_sym] = Configuration.load_config(configuration)
     end
 
     def default

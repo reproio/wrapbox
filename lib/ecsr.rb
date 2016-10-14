@@ -9,12 +9,12 @@ module Ecsr
     end
 
     def configure
-      yield @configs
+      yield configs
     end
 
-    def run(*args)
+    def run(*args, config_name: nil, **options)
       config = @configs.get(config_name)
-      config.run(*args)
+      config.run(*args, **options)
     end
   end
 end
