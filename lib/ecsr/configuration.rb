@@ -3,12 +3,11 @@ require "active_support/core_ext/hash"
 require "multi_json"
 
 module Ecsr
-  Configuration = Struct.new(:name, :cluster, :auto_scaling_group, :region, :container_definition, :additional_container_definitions, :task_role_arn) do
+  Configuration = Struct.new(:name, :cluster, :region, :container_definition, :additional_container_definitions, :task_role_arn) do
     def self.load_config(config)
       new(
         config["name"],
         config["cluster"],
-        config["auto_scaling_group"],
         config["region"],
         config["container_definition"].deep_symbolize_keys,
         config["additional_container_definitions"] || [],
@@ -20,15 +19,16 @@ module Ecsr
       "ecsr_#{name}"
     end
 
-    def run(class_name, method_name, args, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, auto_scaling_group: nil, timeout: nil)
+    def run(class_name, method_name, args, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10)
       task_definition = register_task_definition(container_definition_overrides)
       run_task(
         task_definition.task_definition_arn, class_name, method_name, args,
         environments: environments,
         task_role_arn: task_role_arn,
         cluster: cluster,
-        auto_scaling_group: auto_scaling_group,
-        timeout: timeout
+        timeout: timeout,
+        launch_timeout: launch_timeout,
+        launch_retry: launch_retry,
       )
     end
 
@@ -43,7 +43,7 @@ module Ecsr
       }).task_definition
     end
 
-    def run_task(task_definition_arn, class_name, method_name, args, environments: [], task_role_arn: nil, cluster: nil, timeout: nil, auto_scaling_group: nil)
+    def run_task(task_definition_arn, class_name, method_name, args, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10)
       cl = cluster || self.cluster
       args = Array(args)
 
@@ -51,10 +51,40 @@ module Ecsr
         .run_task(build_run_task_options(class_name, method_name, args, environments, cluster, task_definition_arn, task_role_arn))
         .tasks[0]
 
+      launch_try_count = 0
       begin
+        launched_at = Process.clock_gettime(Process::CLOCK_MONOTONIC, :second)
+        client.wait_until(:tasks_running, cluster: cl, tasks: [task.task_arn]) do |w|
+          if launch_timeout
+            w.max_attempts = nil
+            w.before_wait do
+              throw :failure if Process.clock_gettime(Process::CLOCK_MONOTONIC, :second) - launched_at > launch_timeout
+            end
+          end
+        end
+      rescue Aws::Waiters::Errors::TooManyAttemptsError
+        if launch_try_count >= launch_retry
+          client.stop_task(
+            cluster: cl,
+            task: task.task_arn,
+            reason: "launch timeout"
+          )
+          raise
+        else
+          put_waiting_task_count_metric(cl)
+          launch_try_count += 1
+          retry
+        end
+      end
+
+      begin
+        started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC, :second)
         client.wait_until(:tasks_stopped, cluster: cl, tasks: [task.task_arn]) do |w|
           if timeout
-            w.max_attempts = (timeout / w.delay).to_i + 1
+            w.max_attempts = nil
+            w.before_wait do
+              throw :failure if Process.clock_gettime(Process::CLOCK_MONOTONIC, :second) - started_at > timeout
+            end
           end
         end
       rescue Aws::Waiters::Errors::TooManyAttemptsError
@@ -80,6 +110,31 @@ module Ecsr
       options = {}
       options[:region] = region if region
       @client = Aws::ECS::Client.new(options)
+    end
+
+    def cloud_watch_client
+      return @cloud_watch_client if @cloud_watch_client
+
+      options = {}
+      options[:region] = region if region
+      @cloud_watch_client = Aws::CloudWatch::Client.new
+    end
+
+    def put_waiting_task_count_metric(cluster)
+      cloud_watch_client.put_metric_data(
+        namespace: "ecsr",
+        metric_data: [
+          metric_name: "WaitingTaskCount",
+          dimensions: [
+            {
+              name: "ClusterName",
+              value: cluster || self.cluster,
+            },
+          ],
+          value: 1.0,
+          unit: "Count",
+        ]
+      )
     end
 
     def build_run_task_options(class_name, method_name, args, environments, cluster, task_definition_arn, task_role_arn)

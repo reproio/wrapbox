@@ -4,7 +4,6 @@ describe Ecsr do
   it "can load yaml" do
     config = Ecsr.configs[:default]
     expect(config.cluster).to eq("ecsr-test")
-    expect(config.auto_scaling_group).to eq("ecsr-test")
     expect(config.region).to eq("ap-northeast-1")
     expect(config.container_definition[:cpu]).to eq(512)
   end
