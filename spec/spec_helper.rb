@@ -1,11 +1,11 @@
 $LOAD_PATH.unshift File.expand_path("../../lib", __FILE__)
-require "ecsr"
+require "wrapbox"
 
 require "webmock/rspec"
 require "tapp"
 require "tapp-awesome_print"
 
-Ecsr.configure do |c|
+Wrapbox.configure do |c|
   c.load_yaml(File.expand_path("../config.yml", __FILE__))
 end
 

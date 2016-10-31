@@ -1,6 +1,6 @@
 require "multi_json"
 
-module Ecsr
+module Wrapbox
   module Job
     def self.perform
       klass = ENV[CLASS_NAME_ENV].constantize

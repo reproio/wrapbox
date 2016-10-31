@@ -1,6 +1,6 @@
 require 'yaml'
 
-module Ecsr
+module Wrapbox
   class ConfigRepository
     def initialize
       @configs = {}

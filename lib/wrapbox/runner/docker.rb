@@ -1,7 +1,7 @@
 require "open3"
 require "multi_json"
 
-module Ecsr
+module Wrapbox
   module Runner
     class Docker
       class ExecutionError < StandardError; end
@@ -26,7 +26,7 @@ module Ecsr
         cmdopt = build_cmdopt(definition)
         cmdopt.concat(base_environments(class_name, method_name, args))
         cmdopt.concat(extract_environments(environments))
-        cmdopt.concat([definition[:image], "bundle", "exec", "rake", "ecsr:run"])
+        cmdopt.concat([definition[:image], "bundle", "exec", "rake", "wrapbox:run"])
 
         exec_docker(*cmdopt)
       end

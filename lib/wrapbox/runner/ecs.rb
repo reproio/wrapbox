@@ -1,7 +1,7 @@
 require "aws-sdk"
 require "multi_json"
 
-module Ecsr
+module Wrapbox
   module Runner
     class Ecs
       attr_reader \
@@ -25,7 +25,7 @@ module Ecsr
         task_definition = register_task_definition(container_definition_overrides)
         run_task(
           task_definition.task_definition_arn, class_name, method_name, args,
-          command: ["bundle", "exec", "rake", "ecsr:run"],
+          command: ["bundle", "exec", "rake", "wrapbox:run"],
           environments: environments,
           task_role_arn: task_role_arn,
           cluster: cluster,
@@ -113,7 +113,7 @@ module Ecsr
       private
 
       def task_definition_name
-        "ecsr_#{name}"
+        "wrapbox_#{name}"
       end
 
       def register_task_definition(container_definition_overrides)
@@ -145,7 +145,7 @@ module Ecsr
 
       def put_waiting_task_count_metric(cluster)
         cloud_watch_client.put_metric_data(
-          namespace: "ecsr",
+          namespace: "wrapbox",
           metric_data: [
             metric_name: "WaitingTaskCount",
             dimensions: [
@@ -192,7 +192,7 @@ module Ecsr
           cluster: cluster || self.cluster,
           task_definition: task_definition_arn,
           overrides: overrides,
-          started_by: "ecsr-#{Ecsr::VERSION}",
+          started_by: "wrapbox-#{Wrapbox::VERSION}",
         }
       end
     end

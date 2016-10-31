@@ -1,7 +1,7 @@
 require "active_support/core_ext/hash"
 require "active_support/core_ext/string"
 
-module Ecsr
+module Wrapbox
   Configuration = Struct.new(
     :name,
     :runner,
@@ -32,11 +32,11 @@ module Ecsr
     def initialize(*args)
       super
       raise "#{runner} is unsupported runner" unless AVAILABLE_RUNNERS.include?(runner)
-      require "ecsr/runner/#{runner}"
+      require "wrapbox/runner/#{runner}"
     end
 
     def build_runner
-      Ecsr::Runner.const_get(runner.to_s.camelcase).new(to_h)
+      Wrapbox::Runner.const_get(runner.to_s.camelcase).new(to_h)
     end
 
     def run(class_name, method_name, args, **options)

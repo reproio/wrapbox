@@ -3,7 +3,7 @@ default:
   runner: ecs
   region: ap-northeast-1
   container_definition:
-    image: joker1007/ecsr
+    image: joker1007/wrapbox
     cpu: 512
     memory: 1024
     essential: true
@@ -12,6 +12,6 @@ docker:
   runner: docker
   rm: true
   container_definition:
-    image: joker1007/ecsr
+    image: joker1007/wrapbox
     cpu: 512
     memory: 1024

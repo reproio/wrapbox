@@ -1,7 +1,7 @@
 require "bundler/gem_tasks"
 require "rspec/core/rake_task"
 
-load "ecsr/tasks/run.rake"
+load "wrapbox/tasks/run.rake"
 
 RSpec::Core::RakeTask.new(:spec)
 

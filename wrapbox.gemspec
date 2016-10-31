@@ -1,11 +1,11 @@
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'ecsr/version'
+require 'wrapbox/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = "ecsr"
-  spec.version       = Ecsr::VERSION
+  spec.name          = "wrapbox"
+  spec.version       = Wrapbox::VERSION
   spec.authors       = ["joker1007"]
   spec.email         = ["kakyoin.hierophant@gmail.com"]
 
