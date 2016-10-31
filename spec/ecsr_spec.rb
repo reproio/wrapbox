@@ -12,5 +12,9 @@ describe Ecsr do
     specify "executable on ECS", aws: true do
       Ecsr.run("TestJob", :perform, ["arg1", ["arg2", "arg3"]], environments: [{name: "RAILS_ENV", value: "development"}])
     end
+
+    specify "executable on Docker" do
+      Ecsr.run("TestJob", :perform, ["arg1", ["arg2", "arg3"]], config_name: :docker, environments: [{name: "RAILS_ENV", value: "development"}])
+    end
   end
 end
