@@ -1,8 +1,6 @@
 # Wrapbox
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/wrapbox`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
+Wrapbox runs Ruby method or shell command in a container (ECS, docker).
 
 ## Installation
 
@@ -22,7 +20,90 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+Write config.yml
+
+```yaml
+default:
+  cluster: ecsr-test
+  runner: ecs
+  region: ap-northeast-1
+  container_definition:
+    image: joker1007/wrapbox
+    cpu: 512
+    memory: 1024
+    essential: true
+
+docker:
+  runner: docker
+  rm: true
+  container_definition:
+    image: joker1007/wrapbox
+    cpu: 512
+    memory: 1024
+```
+
+```ruby
+Wrapbox.configure do |c|
+  c.load_yaml(File.expand_path("../config.yml", __FILE__))
+end
+
+# runs TestJob#perform in ECS container
+Wrapbox.run("TestJob", :perform, ["arg1", ["arg2", "arg3"]], environments: [{name: "RAILS_ENV", value: "development"}]) # use default config
+# runs TestJob#perform in local docker container (Use docker cli)
+Wrapbox.run("TestJob", :perform, ["arg1", ["arg2", "arg3"]], config_name: :docker, environments: [{name: "RAILS_ENV", value: "development"}]) # use docker config
+
+# runs ls . command in ECS container
+Wrapbox.run_cmd("ls", ".", environments: [{name: "RAILS_ENV", value: "development"}])
+
+# runs ls . command in local docker container
+Wrapbox.run_cmd("ls", ".", config_name: :docker, environments: [{name: "RAILS_ENV", value: "development"}])
+```
+
+## Config
+
+### Common
+
+| name   | desc              |
+| ------ | ----------------- |
+| runner | "ecs" or "docker" |
+
+### for ECS
+
+| name                             | desc                                                                                                        |
+| --------------------             | ------------------------------------------------                                                            |
+| cluster                          | target ECS cluster name                                                                                     |
+| region                           | region of ECS cluster                                                                                       |
+| container_definition             | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| additional_container_definitions | Container definitions for sub containers                                                                    |
+| task_role_arn                    | see. http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html                         |
+
+### for docker
+| name                 | desc                                                        |
+| -------------------- | ----------------------------------------------------------- |
+| container_definition | only use `image`, `cpu`, `memory`, and `memory_reservation` |
+| rm                   | If true, add `--rm` to cmd options                          |
+| use_sudo             | If true, invoke `sudo docker` command                       |
+
+## API
+
+#### `run(class_name, method_name, args, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10)`
+
+#### `run_cmd(*cmd, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10)`
+
+following options is only for ECS.
+
+- task_role_arn
+- cluster
+- timeout
+- launch_timeout
+- launch_retry
+
+If Wrapbox cannot launch task in `launch_timeout` seconds, it puts custom metric data to CloudWatch.
+Custom metric data is `wrapbox/WaitingTaskCount` that has `ClusterName` dimension.
+And, it retry launching until retry count reach `launch_retry`.
+
+After task exited, Wrapbox checks main container exit code.
+If exit code is not 0, Wrapbox raise error.
 
 ## Development
 
@@ -32,5 +113,5 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/wrapbox.
+Bug reports and pull requests are welcome on GitHub at https://github.com/reproio/wrapbox.
 

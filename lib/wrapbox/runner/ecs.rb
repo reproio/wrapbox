@@ -4,6 +4,8 @@ require "multi_json"
 module Wrapbox
   module Runner
     class Ecs
+      class ExecutionError < StandardError; end
+
       attr_reader \
         :name,
         :cluster,
@@ -106,7 +108,7 @@ module Wrapbox
         task = client.describe_tasks(cluster: cl, tasks: [task.task_arn]).tasks[0]
         container = task.containers.find { |c| c.name = task_definition_name }
         unless container.exit_code == 0
-          raise "Container #{task_definition_name} is failed. exit_code=#{container.exit_code}"
+          raise ExecutionError, "Container #{task_definition_name} is failed. exit_code=#{container.exit_code}"
         end
       end
 

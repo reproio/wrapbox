@@ -88,7 +88,7 @@ module Wrapbox
           wait_thr.value
         end
 
-        raise ExecutionError, "exit status is #{result.exitstatus}" unless result.success?
+        raise ExecutionError, "exit_code=#{result.exitstatus}" unless result.success?
       end
     end
   end
