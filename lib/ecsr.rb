@@ -23,4 +23,4 @@ require "ecsr/version"
 
 require "ecsr/config_repository"
 require "ecsr/configuration"
-require "ecsr/runner"
+require "ecsr/job"

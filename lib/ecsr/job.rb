@@ -1,8 +1,8 @@
 require "multi_json"
 
 module Ecsr
-  module Runner
-    def self.run
+  module Job
+    def self.perform
       klass = ENV[CLASS_NAME_ENV].constantize
       method_name = ENV[METHOD_NAME_ENV].to_sym
       args = MultiJson.load(ENV[METHOD_ARGS_ENV])

@@ -6,7 +6,7 @@ namespace :ecsr do
     Rake::Task["environment"].invoke if defined?(Rails)
 
     if ENV[Ecsr::CLASS_NAME_ENV] && ENV[Ecsr::METHOD_NAME_ENV] && ENV[Ecsr::METHOD_ARGS_ENV]
-      Ecsr::Runner.run
+      Ecsr::Job.perform
     else
       raise "Ecsr ENVs are not found"
     end
