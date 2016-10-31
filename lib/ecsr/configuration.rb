@@ -75,6 +75,7 @@ module Ecsr
           launch_try_count += 1
           retry
         end
+      rescue Aws::Waiters::Errors::WaiterFailed
       end
 
       begin
