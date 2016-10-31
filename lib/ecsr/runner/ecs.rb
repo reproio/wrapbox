@@ -25,6 +25,7 @@ module Ecsr
         task_definition = register_task_definition(container_definition_overrides)
         run_task(
           task_definition.task_definition_arn, class_name, method_name, args,
+          command: ["bundle", "exec", "rake", "ecsr:run"],
           environments: environments,
           task_role_arn: task_role_arn,
           cluster: cluster,
@@ -34,29 +35,27 @@ module Ecsr
         )
       end
 
-      private
+      def run_cmd(*cmd, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10)
+        task_definition = register_task_definition(container_definition_overrides)
 
-      def task_definition_name
-        "ecsr_#{name}"
+        run_task(
+          task_definition.task_definition_arn, nil, nil, nil,
+          command: cmd,
+          environments: environments,
+          task_role_arn: task_role_arn,
+          cluster: cluster,
+          timeout: timeout,
+          launch_timeout: launch_timeout,
+          launch_retry: launch_retry,
+        )
       end
 
-      def register_task_definition(container_definition_overrides)
-        definition = container_definition
-          .merge(container_definition_overrides)
-          .merge(name: task_definition_name)
-        container_definitions = [definition, *additional_container_definitions]
-        client.register_task_definition({
-          family: task_definition_name,
-          container_definitions: container_definitions,
-        }).task_definition
-      end
-
-      def run_task(task_definition_arn, class_name, method_name, args, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10)
+      def run_task(task_definition_arn, class_name, method_name, args, command:, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10)
         cl = cluster || self.cluster
         args = Array(args)
 
         task = client
-          .run_task(build_run_task_options(class_name, method_name, args, environments, cluster, task_definition_arn, task_role_arn))
+          .run_task(build_run_task_options(class_name, method_name, args, command, environments, cluster, task_definition_arn, task_role_arn))
           .tasks[0]
 
         launch_try_count = 0
@@ -111,6 +110,23 @@ module Ecsr
         end
       end
 
+      private
+
+      def task_definition_name
+        "ecsr_#{name}"
+      end
+
+      def register_task_definition(container_definition_overrides)
+        definition = container_definition
+          .merge(container_definition_overrides)
+          .merge(name: task_definition_name)
+        container_definitions = [definition, *additional_container_definitions]
+        client.register_task_definition({
+          family: task_definition_name,
+          container_definitions: container_definitions,
+        }).task_definition
+      end
+
       def client
         return @client if @client
 
@@ -144,8 +160,9 @@ module Ecsr
         )
       end
 
-      def build_run_task_options(class_name, method_name, args, environments, cluster, task_definition_arn, task_role_arn)
-        environment = environments + [
+      def build_run_task_options(class_name, method_name, args, command, environments, cluster, task_definition_arn, task_role_arn)
+        env = environments
+        env += [
           {
             name: CLASS_NAME_ENV,
             value: class_name.to_s,
@@ -158,15 +175,15 @@ module Ecsr
             name: METHOD_ARGS_ENV,
             value: MultiJson.dump(args),
           },
-        ]
+        ] if class_name && method_name && args
         overrides = {
           container_overrides: [
             {
               name: task_definition_name,
-              command: ["bundle", "exec", "rake", "ecsr:run"],
-              environment: environment,
-            }
-          ]
+              command: command,
+              environment: env,
+            },
+          ],
         }
         role_arn = task_role_arn || self.task_role_arn
         overrides[:task_role_arn] = role_arn if role_arn

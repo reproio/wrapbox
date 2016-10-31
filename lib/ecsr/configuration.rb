@@ -42,5 +42,9 @@ module Ecsr
     def run(class_name, method_name, args, **options)
       build_runner.run(class_name, method_name, args, **options)
     end
+
+    def run_cmd(*cmd, **options)
+      build_runner.run_cmd(*cmd, **options)
+    end
   end
 end

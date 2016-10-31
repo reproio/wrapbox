@@ -16,6 +16,11 @@ module Ecsr
       config = @configs.get(config_name)
       config.run(*args, **options)
     end
+
+    def run_cmd(*args, config_name: nil, **options)
+      config = @configs.get(config_name)
+      config.run_cmd(*args, **options)
+    end
   end
 end
 
