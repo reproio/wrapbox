@@ -1,7 +1,6 @@
 $LOAD_PATH.unshift File.expand_path("../../lib", __FILE__)
 require "wrapbox"
 
-require "webmock/rspec"
 require "tapp"
 require "tapp-awesome_print"
 

@@ -7,10 +7,12 @@ module Wrapbox
     :runner,
     :cluster,
     :region,
+    :retry,
+    :retry_interval,
+    :retry_interval_multiplier,
     :container_definition,
     :additional_container_definitions,
     :task_role_arn,
-    :use_sudo,
     :rm
   ) do
     def self.load_config(config)
@@ -19,11 +21,13 @@ module Wrapbox
         config["runner"] ? config["runner"].to_sym : :docker,
         config["cluster"],
         config["region"],
+        config["retry"] || 0,
+        config["retry_interval"] || 1,
+        config["retry_interval_multiplier"] || 2,
         config["container_definition"].deep_symbolize_keys,
         config["additional_container_definitions"] || [],
         config["task_role_arn"],
-        config["use_sudo"].nil? ? false : config["use_sudo"],
-        config["rm"].nil? ? false : config["rm"]
+        config["rm"].nil? ? true : config["rm"]
       )
     end
 
