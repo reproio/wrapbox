@@ -123,6 +123,15 @@ module Wrapbox
           .merge(container_definition_overrides)
           .merge(name: task_definition_name)
         container_definitions = [definition, *additional_container_definitions]
+
+        _, revision = task_definition_name.split(":")
+        if revision
+          begin
+            return client.describe_task_definition(task_definition: task_definition_name).task_definition
+          rescue
+          end
+        end
+
         client.register_task_definition({
           family: task_definition_name,
           container_definitions: container_definitions,
