@@ -4,6 +4,7 @@ require "active_support/core_ext/string"
 module Wrapbox
   Configuration = Struct.new(
     :name,
+    :revision,
     :runner,
     :cluster,
     :region,
@@ -13,11 +14,12 @@ module Wrapbox
     :container_definition,
     :additional_container_definitions,
     :task_role_arn,
-    :rm
+    :keep_container
   ) do
     def self.load_config(config)
       new(
         config["name"],
+        config["revision"],
         config["runner"] ? config["runner"].to_sym : :docker,
         config["cluster"],
         config["region"],
@@ -27,7 +29,7 @@ module Wrapbox
         config["container_definition"].deep_symbolize_keys,
         config["additional_container_definitions"] || [],
         config["task_role_arn"],
-        config["rm"].nil? ? true : config["rm"]
+        config["keep_container"]
       )
     end
 

@@ -10,7 +10,7 @@ default:
 
 docker:
   runner: docker
-  rm: true
+  keep_container: false
   container_definition:
     image: joker1007/wrapbox
     cpu: 512

@@ -1,5 +1,10 @@
 require "aws-sdk"
 require "multi_json"
+require "thor"
+require "yaml"
+require "active_support/core_ext/hash"
+
+require "wrapbox/config_repository"
 
 module Wrapbox
   module Runner
@@ -8,6 +13,7 @@ module Wrapbox
 
       attr_reader \
         :name,
+        :revision,
         :cluster,
         :region,
         :container_definition,
@@ -16,6 +22,7 @@ module Wrapbox
 
       def initialize(options)
         @name = options[:name]
+        @revision = options[:revision]
         @cluster = options[:cluster]
         @region = options[:region]
         @container_definition = options[:container_definition]
@@ -124,10 +131,9 @@ module Wrapbox
           .merge(name: task_definition_name)
         container_definitions = [definition, *additional_container_definitions]
 
-        _, revision = task_definition_name.split(":")
         if revision
           begin
-            return client.describe_task_definition(task_definition: task_definition_name).task_definition
+            return client.describe_task_definition(task_definition: "#{task_definition_name}:#{revision}").task_definition
           rescue
           end
         end
@@ -205,6 +211,31 @@ module Wrapbox
           overrides: overrides,
           started_by: "wrapbox-#{Wrapbox::VERSION}",
         }
+      end
+
+      class Cli < Thor
+        namespace :ecs
+
+        desc "run_cmd [shell command]", "Run shell on ECS"
+        method_option :config, aliases: "-f", required: true, banner: "YAML_FILE", desc: "yaml file path"
+        method_option :config_name, aliases: "-n", required: true, default: "default"
+        method_option :cluster, aliases: "-c"
+        method_option :environments, aliases: "-e"
+        method_option :task_role_arn
+        method_option :timeout, type: :numeric
+        method_option :launch_timeout, type: :numeric
+        method_option :launch_retry, type: :numeric
+        def run_cmd(*args)
+          repo = Wrapbox::ConfigRepository.new.tap { |r| r.load_yaml(options[:config]) }
+          config = repo.get(options[:config_name])
+          config.runner = "ecs"
+          runner = config.build_runner
+          environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
+            {name: k, value: v}
+          end
+          run_options = {task_role_arn: options[:task_role_arn], timeout: options[:timeout], launch_timeout: options[:launch_timeout], launch_retry: options[:launch_retry]}.reject { |_, v| v.nil? }
+          runner.run_cmd(*args, environments: environments, **run_options)
+        end
       end
     end
   end

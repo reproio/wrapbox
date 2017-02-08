@@ -1,4 +1,5 @@
 require 'yaml'
+require 'wrapbox/configuration'
 
 module Wrapbox
   class ConfigRepository

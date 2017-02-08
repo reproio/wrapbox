@@ -11,10 +11,6 @@ end
 RSpec.configure do |c|
   c.order = "random"
   c.filter_run_excluding aws: true
-
-  c.before :each, aws: true do
-    WebMock.allow_net_connect!
-  end
 end
 
 if defined?(Tapp)

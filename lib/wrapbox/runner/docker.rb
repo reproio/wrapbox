@@ -1,6 +1,7 @@
 require "open3"
 require "multi_json"
 require "docker"
+require "thor"
 
 module Wrapbox
   module Runner
@@ -10,12 +11,12 @@ module Wrapbox
       attr_reader \
         :name,
         :container_definition,
-        :rm
+        :keep_container
 
       def initialize(options)
         @name = options[:name]
         @container_definition = options[:container_definition]
-        @rm = options[:rm]
+        @keep_container = options[:keep_container]
       end
 
       def run(class_name, method_name, args, container_definition_overrides: {}, environments: [])
@@ -73,7 +74,7 @@ module Wrapbox
           raise ExecutionError, "exit_code=#{resp["StatusCode"]}"
         end
       ensure
-        container.remove(force: true) if container && @rm
+        container.remove(force: true) if container && !keep_container
       end
 
       def output_container_logs(container)
@@ -83,6 +84,25 @@ module Wrapbox
           else
             $stderr.puts(chunk)
           end
+        end
+      end
+
+      class Cli < Thor
+        namespace :docker
+
+        desc "run_cmd [shell command]", "Run shell on docker"
+        method_option :config, aliases: "-f", required: true, banner: "YAML_FILE", desc: "yaml file path"
+        method_option :config_name, aliases: "-n", required: true, default: "default"
+        method_option :environments, aliases: "-e"
+        def run_cmd(*args)
+          repo = Wrapbox::ConfigRepository.new.tap { |r| r.load_yaml(options[:config]) }
+          config = repo.get(options[:config_name])
+          config.runner = "docker"
+          runner = config.build_runner
+          environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
+            {name: k, value: v}
+          end
+          runner.run_cmd(*args, environments: environments)
         end
       end
     end
