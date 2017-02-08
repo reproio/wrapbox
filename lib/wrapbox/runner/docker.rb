@@ -57,12 +57,14 @@ module Wrapbox
           "Cmd" => cmd,
           "Env" => environments,
         }
-        if definition[:cpu] || definition[:memory] || definition[:memory_reservation]
-          options["HostConfig"] = {}
-          options["HostConfig"]["Cpu"] == definition[:cpu]
-          options["HostConfig"]["Memory"] == definition[:memory]
-          options["HostConfig"]["MemoryReservation"] == definition[:memory_reservation]
-        end
+        options["HostConfig"] = {}
+        options["HostConfig"]["Cpu"] = definition[:cpu] if definition[:cpu]
+        options["HostConfig"]["Memory"] = definition[:memory] * 1024 * 1024 if definition[:memory]
+        options["HostConfig"]["MemoryReservation"] = definition[:memory_reservation] * 1024 * 1024 if definition[:memory_reservation]
+        options["HostConfig"]["Links"] = definition[:links]
+        options["Entrypoint"] = definition[:entry_point] if definition[:entry_point]
+        options["WorkingDir"] = definition[:working_directory] if definition[:working_directory]
+
         container = ::Docker::Container.create(options)
 
         container.start!
