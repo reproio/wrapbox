@@ -10,6 +10,7 @@ module Wrapbox
   module Runner
     class Ecs
       class ExecutionError < StandardError; end
+      class LaunchFailure < StandardError; end
 
       attr_reader \
         :name,
@@ -30,21 +31,24 @@ module Wrapbox
         @task_role_arn = options[:task_role_arn]
       end
 
-      def run(class_name, method_name, args, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10)
+      def run(class_name, method_name, args, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: nil)
         task_definition = register_task_definition(container_definition_overrides)
         run_task(
           task_definition.task_definition_arn, class_name, method_name, args,
           command: ["bundle", "exec", "rake", "wrapbox:run"],
           environments: environments,
-          task_role_arn: task_role_arn,
+          task_role_arn: task_role_arn || @task_role_arn,
           cluster: cluster,
           timeout: timeout,
           launch_timeout: launch_timeout,
           launch_retry: launch_retry,
+          retry_interval: retry_interval,
+          retry_interval_multiplier: retry_interval_multiplier,
+          max_retry_interval: max_retry_interval,
         )
       end
 
-      def run_cmd(*cmd, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10)
+      def run_cmd(*cmd, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: nil)
         task_definition = register_task_definition(container_definition_overrides)
 
         run_task(
@@ -56,20 +60,25 @@ module Wrapbox
           timeout: timeout,
           launch_timeout: launch_timeout,
           launch_retry: launch_retry,
+          retry_interval: retry_interval,
+          retry_interval_multiplier: retry_interval_multiplier,
+          max_retry_interval: max_retry_interval,
         )
       end
 
-      def run_task(task_definition_arn, class_name, method_name, args, command:, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10)
+      def run_task(task_definition_arn, class_name, method_name, args, command:, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: nil)
         cl = cluster || self.cluster
         args = Array(args)
 
-        task = client
-          .run_task(build_run_task_options(class_name, method_name, args, command, environments, cluster, task_definition_arn, task_role_arn))
-          .tasks[0]
-
         launch_try_count = 0
+        current_retry_interval = retry_interval
+        task = nil
         begin
+          task = client
+            .run_task(build_run_task_options(class_name, method_name, args, command, environments, cluster, task_definition_arn, task_role_arn))
+            .tasks[0]
           launched_at = Process.clock_gettime(Process::CLOCK_MONOTONIC, :second)
+          raise LaunchFailure unless task
           client.wait_until(:tasks_running, cluster: cl, tasks: [task.task_arn]) do |w|
             if launch_timeout
               w.max_attempts = nil
@@ -78,17 +87,20 @@ module Wrapbox
               end
             end
           end
-        rescue Aws::Waiters::Errors::TooManyAttemptsError
+        rescue Aws::Waiters::Errors::TooManyAttemptsError, LaunchFailure
           if launch_try_count >= launch_retry
             client.stop_task(
               cluster: cl,
               task: task.task_arn,
               reason: "launch timeout"
-            )
+            ) if task
             raise
           else
             put_waiting_task_count_metric(cl)
             launch_try_count += 1
+            sleep current_retry_interval
+            current_retry_interval *= retry_interval_multiplier
+            current_retry_interval = max_retry_interval if max_retry_interval && current_retry_interval < max_retry_interval
             retry
           end
         rescue Aws::Waiters::Errors::WaiterFailed
@@ -225,6 +237,7 @@ module Wrapbox
         method_option :timeout, type: :numeric
         method_option :launch_timeout, type: :numeric
         method_option :launch_retry, type: :numeric
+        method_option :max_retry_interval, type: :numeric
         def run_cmd(*args)
           repo = Wrapbox::ConfigRepository.new.tap { |r| r.load_yaml(options[:config]) }
           config = repo.get(options[:config_name])
@@ -233,7 +246,13 @@ module Wrapbox
           environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
             {name: k, value: v}
           end
-          run_options = {task_role_arn: options[:task_role_arn], timeout: options[:timeout], launch_timeout: options[:launch_timeout], launch_retry: options[:launch_retry]}.reject { |_, v| v.nil? }
+          run_options = {
+            task_role_arn: options[:task_role_arn],
+            timeout: options[:timeout],
+            launch_timeout: options[:launch_timeout],
+            launch_retry: options[:launch_retry],
+            max_retry_interval: options[:max_retry_interval]
+          }.reject { |_, v| v.nil? }
           runner.run_cmd(*args, environments: environments, **run_options)
         end
       end
