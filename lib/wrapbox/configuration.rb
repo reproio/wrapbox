@@ -40,7 +40,7 @@ module Wrapbox
     end
 
     def build_runner
-      raise "#{runner} is unsupported runner" unless AVAILABLE_RUNNERS.include?(runner)
+      raise "#{runner} is unsupported runner" unless AVAILABLE_RUNNERS.include?(runner.to_sym)
       require "wrapbox/runner/#{runner}"
       Wrapbox::Runner.const_get(runner.to_s.camelcase).new(to_h)
     end

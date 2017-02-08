@@ -242,7 +242,7 @@ module Wrapbox
         def run_cmd(*args)
           repo = Wrapbox::ConfigRepository.new.tap { |r| r.load_yaml(options[:config]) }
           config = repo.get(options[:config_name])
-          config.runner = "ecs"
+          config.runner = :ecs
           runner = config.build_runner
           environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
             {name: k, value: v}
