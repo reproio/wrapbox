@@ -37,11 +37,11 @@ module Wrapbox
 
     def initialize(*args)
       super
-      raise "#{runner} is unsupported runner" unless AVAILABLE_RUNNERS.include?(runner)
-      require "wrapbox/runner/#{runner}"
     end
 
     def build_runner
+      raise "#{runner} is unsupported runner" unless AVAILABLE_RUNNERS.include?(runner)
+      require "wrapbox/runner/#{runner}"
       Wrapbox::Runner.const_get(runner.to_s.camelcase).new(to_h)
     end
 
