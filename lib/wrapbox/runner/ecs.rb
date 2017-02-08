@@ -5,6 +5,7 @@ require "yaml"
 require "active_support/core_ext/hash"
 
 require "wrapbox/config_repository"
+require "wrapbox/version"
 
 module Wrapbox
   module Runner
