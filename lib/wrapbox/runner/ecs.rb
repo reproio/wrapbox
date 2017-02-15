@@ -32,7 +32,7 @@ module Wrapbox
         @task_role_arn = options[:task_role_arn]
       end
 
-      def run(class_name, method_name, args, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: nil)
+      def run(class_name, method_name, args, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: 120)
         task_definition = register_task_definition(container_definition_overrides)
         run_task(
           task_definition.task_definition_arn, class_name, method_name, args,
@@ -49,7 +49,7 @@ module Wrapbox
         )
       end
 
-      def run_cmd(*cmd, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: nil)
+      def run_cmd(*cmd, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: 120)
         task_definition = register_task_definition(container_definition_overrides)
 
         run_task(
@@ -67,7 +67,7 @@ module Wrapbox
         )
       end
 
-      def run_task(task_definition_arn, class_name, method_name, args, command:, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: nil)
+      def run_task(task_definition_arn, class_name, method_name, args, command:, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: 120)
         cl = cluster || self.cluster
         args = Array(args)
 
@@ -78,14 +78,13 @@ module Wrapbox
           task = client
             .run_task(build_run_task_options(class_name, method_name, args, command, environments, cluster, task_definition_arn, task_role_arn))
             .tasks[0]
-          launched_at = Process.clock_gettime(Process::CLOCK_MONOTONIC, :second)
           raise LaunchFailure unless task
           client.wait_until(:tasks_running, cluster: cl, tasks: [task.task_arn]) do |w|
             if launch_timeout
+              w.delay = 5
+              w.max_attempts = launch_timeout / w.delay
+            else
               w.max_attempts = nil
-              w.before_wait do
-                throw :failure if Process.clock_gettime(Process::CLOCK_MONOTONIC, :second) - launched_at > launch_timeout
-              end
             end
           end
         rescue Aws::Waiters::Errors::TooManyAttemptsError, LaunchFailure
@@ -108,13 +107,12 @@ module Wrapbox
         end
 
         begin
-          started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC, :second)
           client.wait_until(:tasks_stopped, cluster: cl, tasks: [task.task_arn]) do |w|
             if timeout
+              w.delay = 5
+              w.max_attempts = timeout / w.delay
+            else
               w.max_attempts = nil
-              w.before_wait do
-                throw :failure if Process.clock_gettime(Process::CLOCK_MONOTONIC, :second) - started_at > timeout
-              end
             end
           end
         rescue Aws::Waiters::Errors::TooManyAttemptsError
@@ -123,19 +121,31 @@ module Wrapbox
             task: task.task_arn,
             reason: "process timeout",
           })
+        rescue Aws::Waiters::Errors::WaiterFailed
+          exit_code = fetch_exit_code(cl, task.task_arn)
+          unless exit_code
+            launch_try_count += 1
+            sleep current_retry_interval
+            current_retry_interval = [current_retry_interval * retry_interval_multiplier, max_retry_interval].max
+            retry
+          end
+
+          raise ExecutionError, "Container #{task_definition_name} is failed. exit_code=#{exit_code}"
         end
 
-        task = client.describe_tasks(cluster: cl, tasks: [task.task_arn]).tasks[0]
-        container = task.containers.find { |c| c.name = task_definition_name }
-        unless container.exit_code == 0
-          raise ExecutionError, "Container #{task_definition_name} is failed. exit_code=#{container.exit_code}"
-        end
+        true
       end
 
       private
 
       def task_definition_name
         "wrapbox_#{name}"
+      end
+
+      def fetch_exit_code(cluster, task_arn)
+        task = client.describe_tasks(cluster: cluster, tasks: [task_arn]).tasks[0]
+        container = task.containers.find { |c| c.name = task_definition_name }
+        container.exit_code
       end
 
       def register_task_definition(container_definition_overrides)
