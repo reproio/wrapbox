@@ -175,7 +175,7 @@ module Wrapbox
 
         options = {}
         options[:region] = region if region
-        @cloud_watch_client = Aws::CloudWatch::Client.new
+        @cloud_watch_client = Aws::CloudWatch::Client.new(options)
       end
 
       def put_waiting_task_count_metric(cluster)
