@@ -23,6 +23,12 @@ describe Wrapbox do
       Wrapbox.run_cmd("ls", ".", environments: [{name: "RAILS_ENV", value: "development"}])
     end
 
+    specify "executable on ECS with error", aws: true do
+      expect {
+        Wrapbox.run_cmd("ls", "no_dir", environments: [{name: "RAILS_ENV", value: "development"}])
+      }.to raise_error(Wrapbox::Runner::Ecs::ExecutionError)
+    end
+
     specify "executable on Docker" do
       Wrapbox.run_cmd("ls", ".", config_name: :docker, environments: [{name: "RAILS_ENV", value: "development"}])
     end

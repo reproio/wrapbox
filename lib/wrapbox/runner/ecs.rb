@@ -74,6 +74,7 @@ module Wrapbox
         launch_try_count = 0
         current_retry_interval = retry_interval
         task = nil
+        exit_code = nil
         begin
           task = client
             .run_task(build_run_task_options(class_name, method_name, args, command, environments, cluster, task_definition_arn, task_role_arn))
@@ -87,23 +88,23 @@ module Wrapbox
               w.max_attempts = nil
             end
           end
-        rescue Aws::Waiters::Errors::TooManyAttemptsError, LaunchFailure
-          if launch_try_count >= launch_retry
-            client.stop_task(
-              cluster: cl,
-              task: task.task_arn,
-              reason: "launch timeout"
-            ) if task
-            raise
-          else
-            put_waiting_task_count_metric(cl)
-            launch_try_count += 1
-            sleep current_retry_interval
-            current_retry_interval *= retry_interval_multiplier
-            current_retry_interval = max_retry_interval if max_retry_interval && current_retry_interval < max_retry_interval
-            retry
+        rescue Aws::Waiters::Errors::WaiterFailed, LaunchFailure
+          unless task && (exit_code = fetch_exit_code(cl, task.task_arn))
+            if launch_try_count >= launch_retry
+              client.stop_task(
+                cluster: cl,
+                task: task.task_arn,
+                reason: "launch timeout"
+              ) if task
+              raise
+            else
+              put_waiting_task_count_metric(cl)
+              launch_try_count += 1
+              sleep current_retry_interval
+              current_retry_interval = [current_retry_interval * retry_interval_multiplier, max_retry_interval].min
+              retry
+            end
           end
-        rescue Aws::Waiters::Errors::WaiterFailed
         end
 
         begin
@@ -115,25 +116,19 @@ module Wrapbox
               w.max_attempts = nil
             end
           end
-        rescue Aws::Waiters::Errors::TooManyAttemptsError
+        rescue Aws::Waiters::Errors::TooManyAttemptsError => e
           client.stop_task({
             cluster: cluster || self.cluster,
             task: task.task_arn,
             reason: "process timeout",
           })
-        rescue Aws::Waiters::Errors::WaiterFailed
-          exit_code = fetch_exit_code(cl, task.task_arn)
-          unless exit_code
-            launch_try_count += 1
-            sleep current_retry_interval
-            current_retry_interval = [current_retry_interval * retry_interval_multiplier, max_retry_interval].max
-            retry
-          end
-
-          raise ExecutionError, "Container #{task_definition_name} is failed. exit_code=#{exit_code}"
+          raise ExecutionError, "process timeout"
         end
 
-        true
+        exit_code ||= fetch_exit_code(cl, task.task_arn)
+        unless exit_code == 0
+          raise ExecutionError, "Container #{task_definition_name} is failed. exit_code=#{exit_code}"
+        end
       end
 
       private
