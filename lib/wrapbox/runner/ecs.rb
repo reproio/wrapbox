@@ -3,6 +3,7 @@ require "multi_json"
 require "thor"
 require "yaml"
 require "active_support/core_ext/hash"
+require "logger"
 
 require "wrapbox/config_repository"
 require "wrapbox/version"
@@ -30,6 +31,7 @@ module Wrapbox
         @container_definition = options[:container_definition]
         @additional_container_definitions = options[:additional_container_definitions]
         @task_role_arn = options[:task_role_arn]
+        @logger = Logger.new($stdout)
       end
 
       def run(class_name, method_name, args, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: 120)
@@ -80,6 +82,7 @@ module Wrapbox
             .run_task(build_run_task_options(class_name, method_name, args, command, environments, cluster, task_definition_arn, task_role_arn))
             .tasks[0]
           raise LaunchFailure unless task
+          @logger.debug("Create Task: #{task.task_arn}")
           client.wait_until(:tasks_running, cluster: cl, tasks: [task.task_arn]) do |w|
             if launch_timeout
               w.delay = 5
@@ -89,7 +92,8 @@ module Wrapbox
             end
           end
         rescue Aws::Waiters::Errors::WaiterFailed, LaunchFailure
-          unless task && (exit_code = fetch_exit_code(cl, task.task_arn))
+          exit_code = task && fetch_exit_code(cl, task.task_arn)
+          unless exit_code
             if launch_try_count >= launch_retry
               client.stop_task(
                 cluster: cl,
@@ -100,12 +104,15 @@ module Wrapbox
             else
               put_waiting_task_count_metric(cl)
               launch_try_count += 1
+              @logger.debug("Retry Create Task after #{current_retry_interval} sec")
               sleep current_retry_interval
               current_retry_interval = [current_retry_interval * retry_interval_multiplier, max_retry_interval].min
               retry
             end
           end
         end
+
+        @logger.debug("Launch Task: #{task.task_arn}")
 
         begin
           client.wait_until(:tasks_stopped, cluster: cl, tasks: [task.task_arn]) do |w|
@@ -116,7 +123,7 @@ module Wrapbox
               w.max_attempts = nil
             end
           end
-        rescue Aws::Waiters::Errors::TooManyAttemptsError => e
+        rescue Aws::Waiters::Errors::TooManyAttemptsError
           client.stop_task({
             cluster: cluster || self.cluster,
             task: task.task_arn,
@@ -124,6 +131,8 @@ module Wrapbox
           })
           raise ExecutionError, "process timeout"
         end
+
+        @logger.debug("Stop Task: #{task.task_arn}")
 
         exit_code ||= fetch_exit_code(cl, task.task_arn)
         unless exit_code == 0
