@@ -254,6 +254,10 @@ module Wrapbox
         method_option :launch_retry, type: :numeric
         method_option :max_retry_interval, type: :numeric
         def run_cmd(*args)
+          if args.size == 1
+            args = args[0].split(" ")
+          end
+
           repo = Wrapbox::ConfigRepository.new.tap { |r| r.load_yaml(options[:config]) }
           config = repo.get(options[:config_name])
           config.runner = :ecs

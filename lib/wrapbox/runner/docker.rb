@@ -97,6 +97,10 @@ module Wrapbox
         method_option :config_name, aliases: "-n", required: true, default: "default"
         method_option :environments, aliases: "-e"
         def run_cmd(*args)
+          if args.size == 1
+            args = args[0].split(" ")
+          end
+
           repo = Wrapbox::ConfigRepository.new.tap { |r| r.load_yaml(options[:config]) }
           config = repo.get(options[:config_name])
           config.runner = :docker
