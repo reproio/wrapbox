@@ -165,10 +165,18 @@ module Wrapbox
           end
         end
 
-        client.register_task_definition({
-          family: task_definition_name,
-          container_definitions: container_definitions,
-        }).task_definition
+        register_retry_count = 0
+        begin
+          client.register_task_definition({
+            family: task_definition_name,
+            container_definitions: container_definitions,
+          }).task_definition
+        rescue Aws::ECS::Errors::ClientException
+          raise if register_retry_count > 2
+          register_retry_count += 1
+          sleep 2
+          retry
+        end
       end
 
       def client
