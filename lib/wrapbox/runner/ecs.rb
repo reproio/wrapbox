@@ -91,7 +91,7 @@ module Wrapbox
               w.max_attempts = nil
             end
           end
-        rescue Aws::Waiters::Errors::WaiterFailed, LaunchFailure
+        rescue Aws::Waiters::Errors::TooManyAttemptsError, LaunchFailure
           exit_code = task && fetch_exit_code(cl, task.task_arn)
           unless exit_code
             if launch_try_count >= launch_retry
@@ -110,6 +110,9 @@ module Wrapbox
               retry
             end
           end
+        rescue Aws::Waiters::Errors::WaiterFailed
+          exit_code = task && fetch_exit_code(cl, task.task_arn)
+          raise unless exit_code
         end
 
         @logger.debug("Launch Task: #{task.task_arn}")
