@@ -1,5 +1,7 @@
 $LOAD_PATH.unshift File.expand_path("../../lib", __FILE__)
 require "wrapbox"
+require "wrapbox/runner/docker"
+require "wrapbox/runner/ecs"
 
 require "tapp"
 require "tapp-awesome_print"

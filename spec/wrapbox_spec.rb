@@ -26,7 +26,13 @@ describe Wrapbox do
     specify "executable on ECS with error", aws: true do
       expect {
         Wrapbox.run_cmd("ls", "no_dir", environments: [{name: "RAILS_ENV", value: "development"}])
-      }.to raise_error(Wrapbox::Runner::Ecs::ExecutionError)
+      }.to raise_error(Wrapbox::Runner::Ecs::ExecutionFailure)
+    end
+
+    specify "executable on ECS with error, retrying", aws: true do
+      expect {
+        Wrapbox.run_cmd("ls", "no_dir", environments: [{name: "RAILS_ENV", value: "development"}], execution_retry: 1)
+      }.to raise_error(Wrapbox::Runner::Ecs::ExecutionFailure)
     end
 
     specify "executable on Docker" do
