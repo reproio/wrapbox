@@ -16,6 +16,8 @@ module Wrapbox
       class LaunchFailure < StandardError; end
 
       EXECUTION_RETRY_INTERVAL = 3
+      EXECUTION_RETRY_INTERVAL = 3
+      WAIT_DELAY = 5
 
       attr_reader \
         :name,
@@ -34,6 +36,7 @@ module Wrapbox
         @container_definition = options[:container_definition]
         @additional_container_definitions = options[:additional_container_definitions]
         @task_role_arn = options[:task_role_arn]
+        $stdout.sync = true
         @logger = Logger.new($stdout)
       end
 
@@ -83,7 +86,7 @@ module Wrapbox
 
         current_retry_interval = retry_interval
         task = nil
-        exit_code = nil
+        task_status = nil
 
         begin
           begin
@@ -92,17 +95,11 @@ module Wrapbox
               .tasks[0]
             raise LaunchFailure unless task
             @logger.debug("Create Task: #{task.task_arn}")
-            client.wait_until(:tasks_running, cluster: cl, tasks: [task.task_arn]) do |w|
-              if launch_timeout
-                w.delay = 5
-                w.max_attempts = launch_timeout / w.delay
-              else
-                w.max_attempts = nil
-              end
-            end
+            sleep WAIT_DELAY
+            wait_task_launching(cl, task.task_arn, launch_timeout)
           rescue Aws::Waiters::Errors::TooManyAttemptsError, LaunchFailure
-            exit_code = task && fetch_exit_code(cl, task.task_arn)
-            unless exit_code
+            task_status = task && fetch_task_status(cl, task.task_arn)
+            unless task_status && task_status[:exit_code]
               if launch_try_count >= launch_retry
                 client.stop_task(
                   cluster: cl,
@@ -120,38 +117,24 @@ module Wrapbox
               end
             end
           rescue Aws::Waiters::Errors::WaiterFailed
-            exit_code = task && fetch_exit_code(cl, task.task_arn)
-            raise unless exit_code
+            task_status = fetch_task_status(cl, task.task_arn)
+            if task_status[:last_status] == "PENDING"
+              wait_task_launching(cl, task.task_arn, launch_timeout)
+            end
           end
 
           @logger.debug("Launch Task: #{task.task_arn}")
 
-          begin
-            client.wait_until(:tasks_stopped, cluster: cl, tasks: [task.task_arn]) do |w|
-              if timeout
-                w.delay = 5
-                w.max_attempts = timeout / w.delay
-              else
-                w.max_attempts = nil
-              end
-            end
-          rescue Aws::Waiters::Errors::TooManyAttemptsError
-            client.stop_task({
-              cluster: cluster || self.cluster,
-              task: task.task_arn,
-              reason: "process timeout",
-            })
-            raise ExecutionTimeout, "Container #{task_definition_name} is timeout. task=#{task.task_arn}, timeout=#{timeout}"
-          end
+          wait_task_executing(cl, task.task_arn, timeout)
 
           @logger.debug("Stop Task: #{task.task_arn}")
 
-          exit_code ||= fetch_exit_code(cl, task.task_arn)
-          unless exit_code == 0
-            raise ExecutionFailure, "Container #{task_definition_name} is failed. task=#{task.task_arn}, exit_code=#{exit_code}"
+          task_status ||= fetch_task_status(cl, task.task_arn)
+          unless task_status && task_status[:exit_code] == 0
+            raise ExecutionFailure, "Container #{task_definition_name} is failed. task=#{task.task_arn}, exit_code=#{task_status[:exit_code]}"
           end
         rescue ExecutionFailure
-          if exit_code || execution_try_count >= execution_retry
+          if (task_status && task_status[:exit_code]) || execution_try_count >= execution_retry
             raise
           else
             execution_try_count += 1
@@ -168,10 +151,39 @@ module Wrapbox
         "wrapbox_#{name}"
       end
 
-      def fetch_exit_code(cluster, task_arn)
+      def wait_task_launching(cluster, task_arn, launch_timeout)
+        client.wait_until(:tasks_running, cluster: cluster, tasks: [task_arn]) do |w|
+          if launch_timeout
+            w.delay = WAIT_DELAY
+            w.max_attempts = launch_timeout / w.delay
+          else
+            w.max_attempts = nil
+          end
+        end
+      end
+
+      def wait_task_executing(cluster, task_arn, timeout)
+        client.wait_until(:tasks_stopped, cluster: cluster, tasks: [task_arn]) do |w|
+          if timeout
+            w.delay = 5
+            w.max_attempts = timeout / w.delay
+          else
+            w.max_attempts = nil
+          end
+        end
+      rescue Aws::Waiters::Errors::TooManyAttemptsError
+        client.stop_task({
+          cluster: cl,
+          task: task_arn,
+          reason: "process timeout",
+        })
+        raise ExecutionTimeout, "Container #{task_definition_name} is timeout. task=#{task_arn}, timeout=#{timeout}"
+      end
+
+      def fetch_task_status(cluster, task_arn)
         task = client.describe_tasks(cluster: cluster, tasks: [task_arn]).tasks[0]
         container = task.containers.find { |c| c.name = task_definition_name }
-        container.exit_code
+        {status: task.last_status, exit_code: container.exit_code}
       end
 
       def register_task_definition(container_definition_overrides)
