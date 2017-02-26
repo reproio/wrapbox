@@ -16,7 +16,6 @@ module Wrapbox
       class LaunchFailure < StandardError; end
 
       EXECUTION_RETRY_INTERVAL = 3
-      EXECUTION_RETRY_INTERVAL = 3
       WAIT_DELAY = 5
 
       attr_reader \
