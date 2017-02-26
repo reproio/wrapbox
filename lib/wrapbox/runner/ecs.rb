@@ -128,6 +128,8 @@ module Wrapbox
 
           @logger.debug("Stop Task: #{task.task_arn}")
 
+          sleep WAIT_DELAY
+
           task_status ||= fetch_task_status(cl, task.task_arn)
           unless task_status && task_status[:exit_code] == 0
             raise ExecutionFailure, "Container #{task_definition_name} is failed. task=#{task.task_arn}, exit_code=#{task_status[:exit_code]}"
