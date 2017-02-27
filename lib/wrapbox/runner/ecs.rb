@@ -92,7 +92,7 @@ module Wrapbox
         begin
           begin
             task = client
-              .run_task(build_run_task_options(class_name, method_name, args, command, environments, cluster, task_definition_arn, task_role_arn))
+              .run_task(build_run_task_options(class_name, method_name, args, command, environments, cl, task_definition_arn, task_role_arn))
               .tasks[0]
             raise LaunchFailure unless task # this case is almost lack of container resource.
             @logger.debug("Create Task: #{task.task_arn}")
