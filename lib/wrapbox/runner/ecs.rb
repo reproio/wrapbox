@@ -18,6 +18,7 @@ module Wrapbox
 
       EXECUTION_RETRY_INTERVAL = 3
       WAIT_DELAY = 5
+      HOST_TERMINATED_REASON_REGEXP = /Host EC2.*terminated/
 
       attr_reader \
         :name,
@@ -140,13 +141,14 @@ module Wrapbox
           task_status ||= fetch_task_status(cl, task.task_arn)
 
           # If exit_code is nil, Container is force killed or ECS failed to launch Container by Irregular situation
-          raise ContainerAbnormalEnd unless task_status
-          raise ContainerAbnormalEnd unless task_status[:exit_code]
+          error_message = "Container #{task_definition_name} is failed. task=#{task.task_arn}, exit_code=#{task_status[:exit_code]}, reason=#{task_status[:stopped_reason]}"
+          raise ContainerAbnormalEnd, error_message unless task_status[:exit_code]
+          raise ExecutionFailure, error_message unless task_status[:exit_code] == 0
 
-          unless task_status[:exit_code] == 0
-            raise ExecutionFailure, "Container #{task_definition_name} is failed. task=#{task.task_arn}, exit_code=#{task_status[:exit_code]}"
-          end
+          true
         rescue ContainerAbnormalEnd
+          retry if task_status[:stopped_reason] =~ HOST_TERMINATED_REASON_REGEXP
+
           if execution_try_count >= execution_retry
             raise
           else
@@ -196,7 +198,7 @@ module Wrapbox
       def fetch_task_status(cluster, task_arn)
         task = client.describe_tasks(cluster: cluster, tasks: [task_arn]).tasks[0]
         container = task.containers.find { |c| c.name = task_definition_name }
-        {status: task.last_status, exit_code: container.exit_code}
+        {status: task.last_status, exit_code: container.exit_code, stopped_reason: task.stopped_reason}
       end
 
       def register_task_definition(container_definition_overrides)
