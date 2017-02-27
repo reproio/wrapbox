@@ -12,6 +12,7 @@ module Wrapbox
   module Runner
     class Ecs
       class ExecutionFailure < StandardError; end
+      class ContainerAbnormalEnd < StandardError; end
       class ExecutionTimeout < StandardError; end
       class LaunchFailure < StandardError; end
 
@@ -92,12 +93,17 @@ module Wrapbox
             task = client
               .run_task(build_run_task_options(class_name, method_name, args, command, environments, cluster, task_definition_arn, task_role_arn))
               .tasks[0]
-            raise LaunchFailure unless task
+            raise LaunchFailure unless task # this case is almost lack of container resource.
             @logger.debug("Create Task: #{task.task_arn}")
+
+            # Wait ECS Task Status becomes stable
             sleep WAIT_DELAY
+
             wait_task_launching(cl, task.task_arn, launch_timeout)
           rescue Aws::Waiters::Errors::TooManyAttemptsError, LaunchFailure
             task_status = task && fetch_task_status(cl, task.task_arn)
+
+            # If Task is already finished, skip continuous process.
             unless task_status && task_status[:exit_code]
               if launch_try_count >= launch_retry
                 client.stop_task(
@@ -128,14 +134,20 @@ module Wrapbox
 
           @logger.debug("Stop Task: #{task.task_arn}")
 
+          # Avoid container exit code fetch miss
           sleep WAIT_DELAY
 
           task_status ||= fetch_task_status(cl, task.task_arn)
-          unless task_status && task_status[:exit_code] == 0
+
+          # If exit_code is nil, Container is force killed or ECS failed to launch Container by Irregular situation
+          raise ContainerAbnormalEnd unless task_status
+          raise ContainerAbnormalEnd unless task_status[:exit_code]
+
+          unless task_status[:exit_code] == 0
             raise ExecutionFailure, "Container #{task_definition_name} is failed. task=#{task.task_arn}, exit_code=#{task_status[:exit_code]}"
           end
-        rescue ExecutionFailure
-          if (task_status && task_status[:exit_code]) || execution_try_count >= execution_retry
+        rescue ContainerAbnormalEnd
+          if execution_try_count >= execution_retry
             raise
           else
             execution_try_count += 1
@@ -166,7 +178,7 @@ module Wrapbox
       def wait_task_executing(cluster, task_arn, timeout)
         client.wait_until(:tasks_stopped, cluster: cluster, tasks: [task_arn]) do |w|
           if timeout
-            w.delay = 5
+            w.delay = WAIT_DELAY
             w.max_attempts = timeout / w.delay
           else
             w.max_attempts = nil
