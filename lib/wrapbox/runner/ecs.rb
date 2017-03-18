@@ -74,15 +74,20 @@ module Wrapbox
         )
       end
 
-      def run_cmd(*cmd, container_definition_overrides: {}, **parameters)
+      def run_cmd(cmds, container_definition_overrides: {}, **parameters)
         task_definition = register_task_definition(container_definition_overrides)
         parameter = Parameter.new(**parameters)
 
-        run_task(
-          task_definition.task_definition_arn, nil, nil, nil,
-          cmd,
-          parameter
-        )
+        ths = cmds.map do |cmd|
+          Thread.new(cmd) do |c|
+            run_task(
+              task_definition.task_definition_arn, nil, nil, nil,
+              c.split(/\s+/),
+              parameter
+            )
+          end
+        end
+        ths.each(&:join)
       end
 
       private
@@ -347,10 +352,6 @@ module Wrapbox
         method_option :execution_retry, type: :numeric
         method_option :max_retry_interval, type: :numeric
         def run_cmd(*args)
-          if args.size == 1
-            args = args[0].split(" ")
-          end
-
           repo = Wrapbox::ConfigRepository.new.tap { |r| r.load_yaml(options[:config]) }
           config = repo.get(options[:config_name])
           config.runner = :ecs
@@ -366,7 +367,7 @@ module Wrapbox
             execution_retry: options[:execution_retry],
             max_retry_interval: options[:max_retry_interval]
           }.reject { |_, v| v.nil? }
-          runner.run_cmd(*args, environments: environments, **run_options)
+          runner.run_cmd(args, environments: environments, **run_options)
         end
       end
     end

@@ -29,13 +29,18 @@ module Wrapbox
         exec_docker(definition: definition, cmd: ["bundle", "exec", "rake", "wrapbox:run"], environments: envs)
       end
 
-      def run_cmd(*cmd,  container_definition_overrides: {}, environments: [])
+      def run_cmd(cmds,  container_definition_overrides: {}, environments: [])
         definition = container_definition
           .merge(container_definition_overrides)
 
         environments = extract_environments(environments)
 
-        exec_docker(definition: definition, cmd: cmd, environments: environments)
+        ths = cmds.map do |cmd|
+          Thread.new(cmd) do |c|
+            exec_docker(definition: definition, cmd: c.split(/\s+/), environments: environments)
+          end
+        end
+        ths.each(&:join)
       end
 
       private
@@ -67,7 +72,7 @@ module Wrapbox
 
         container = ::Docker::Container.create(options)
 
-        container.start!
+        container.start
         output_container_logs(container)
         resp = container.wait
         output_container_logs(container)
@@ -97,10 +102,6 @@ module Wrapbox
         method_option :config_name, aliases: "-n", required: true, default: "default"
         method_option :environments, aliases: "-e"
         def run_cmd(*args)
-          if args.size == 1
-            args = args[0].split(" ")
-          end
-
           repo = Wrapbox::ConfigRepository.new.tap { |r| r.load_yaml(options[:config]) }
           config = repo.get(options[:config_name])
           config.runner = :docker
@@ -108,7 +109,7 @@ module Wrapbox
           environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
             {name: k, value: v}
           end
-          runner.run_cmd(*args, environments: environments)
+          runner.run_cmd(args, environments: environments)
         end
       end
     end
