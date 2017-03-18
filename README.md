@@ -42,6 +42,17 @@ docker:
     memory: 1024
 ```
 
+#### run by CLI
+
+```sh
+$ wrapbox ecs run_cmd -f config.yml \
+  -e "FOO=bar,HOGE=fuga" \
+  "bundle exec rspec spec/models" \
+  "bundle exec rspec spec/controllers" \
+```
+
+#### run by ruby
+
 ```ruby
 Wrapbox.configure do |c|
   c.load_yaml(File.expand_path("../config.yml", __FILE__))
@@ -53,10 +64,7 @@ Wrapbox.run("TestJob", :perform, ["arg1", ["arg2", "arg3"]], environments: [{nam
 Wrapbox.run("TestJob", :perform, ["arg1", ["arg2", "arg3"]], config_name: :docker, environments: [{name: "RAILS_ENV", value: "development"}]) # use docker config
 
 # runs ls . command in ECS container
-Wrapbox.run_cmd("ls", ".", environments: [{name: "RAILS_ENV", value: "development"}])
-
-# runs ls . command in local docker container
-Wrapbox.run_cmd("ls", ".", config_name: :docker, environments: [{name: "RAILS_ENV", value: "development"}])
+Wrapbox.run_cmd(["ls ."], environments: [{name: "RAILS_ENV", value: "development"}])
 ```
 
 ## Config
@@ -86,9 +94,9 @@ Wrapbox.run_cmd("ls", ".", config_name: :docker, environments: [{name: "RAILS_EN
 
 ## API
 
-#### `run(class_name, method_name, args, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10)`
+#### `run(class_name, method_name, args, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: 120, execution_retry: 0)`
 
-#### `run_cmd(*cmd, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10)`
+#### `run_cmd(*cmd, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: 120, execution_retry: 0)`
 
 following options is only for ECS.
 
@@ -98,7 +106,7 @@ following options is only for ECS.
 - launch_timeout
 - launch_retry
 
-If Wrapbox cannot launch task in `launch_timeout` seconds, it puts custom metric data to CloudWatch.
+If Wrapbox cannot create task, it puts custom metric data to CloudWatch.
 Custom metric data is `wrapbox/WaitingTaskCount` that has `ClusterName` dimension.
 And, it retry launching until retry count reach `launch_retry`.
 
