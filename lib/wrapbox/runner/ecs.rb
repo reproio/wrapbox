@@ -111,7 +111,7 @@ module Wrapbox
           task_status = fetch_task_status(cl, task.task_arn)
 
           # If exit_code is nil, Container is force killed or ECS failed to launch Container by Irregular situation
-          error_message = "Container #{task_definition_name} is failed. task=#{task.task_arn}, exit_code=#{task_status[:exit_code]}, reason=#{task_status[:stopped_reason]}"
+          error_message = "Container #{task_definition_name} is failed. task=#{task.task_arn}, exit_code=#{task_status[:exit_code]}, task_stopped_reason=#{task_status[:stopped_reason]}, container_stopped_reason=#{task_status[:container_stopped_reason]}"
           raise ContainerAbnormalEnd, error_message unless task_status[:exit_code]
           raise ExecutionFailure, error_message unless task_status[:exit_code] == 0
 
@@ -237,7 +237,12 @@ module Wrapbox
       def fetch_task_status(cluster, task_arn)
         task = client.describe_tasks(cluster: cluster, tasks: [task_arn]).tasks[0]
         container = task.containers.find { |c| c.name = task_definition_name }
-        {last_status: task.last_status, exit_code: container.exit_code, stopped_reason: task.stopped_reason}
+        {
+          last_status: task.last_status,
+          exit_code: container.exit_code,
+          stopped_reason: task.stopped_reason,
+          container_stopped_reason: container.reason
+        }
       end
 
       def register_task_definition(container_definition_overrides)
