@@ -194,7 +194,10 @@ module Wrapbox
           end
         rescue LaunchFailure
           if launch_try_count >= parameter.launch_retry
-            raise
+            task_status = fetch_task_status(cl, task.task_arn)
+  
+            error_message = "Container #{task_definition_name} is failed. task=#{task.task_arn}, exit_code=#{task_status[:exit_code]}, task_stopped_reason=#{task_status[:stopped_reason]}, container_stopped_reason=#{task_status[:container_stopped_reason]}"
+            raise LaunchFailure, error_message
           else
             launch_try_count += 1
             @logger.debug("Retry Create Task after #{current_retry_interval} sec")
