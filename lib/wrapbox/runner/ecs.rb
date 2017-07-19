@@ -76,14 +76,14 @@ module Wrapbox
 
       def run_cmd(cmds, container_definition_overrides: {}, **parameters)
         task_definition = register_task_definition(container_definition_overrides)
-        parameter = Parameter.new(**parameters)
 
-        ths = cmds.map do |cmd|
-          Thread.new(cmd) do |c|
+        ths = cmds.map.with_index do |cmd, idx|
+          Thread.new(cmd, idx) do |c, i|
+            envs = (parameters[:environments] || []) + [{name: "WRAPBOX_CMD_INDEX", value: i.to_s}]
             run_task(
               task_definition.task_definition_arn, nil, nil, nil,
               c.split(/\s+/),
-              parameter
+              Parameter.new(**parameters.merge(environments: envs))
             )
           end
         end

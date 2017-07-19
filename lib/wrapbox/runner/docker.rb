@@ -35,9 +35,10 @@ module Wrapbox
 
         environments = extract_environments(environments)
 
-        ths = cmds.map do |cmd|
-          Thread.new(cmd) do |c|
-            exec_docker(definition: definition, cmd: c.split(/\s+/), environments: environments)
+        ths = cmds.map.with_index do |cmd, idx|
+          Thread.new(cmd, idx) do |c, i|
+            envs = environments + ["WRAPBOX_CMD_INDEX=#{idx}"]
+            exec_docker(definition: definition, cmd: c.split(/\s+/), environments: envs)
           end
         end
         ths.each(&:join)
