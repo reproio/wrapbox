@@ -85,6 +85,17 @@ Wrapbox.run_cmd(["ls ."], environments: [{name: "RAILS_ENV", value: "development
 | additional_container_definitions | Container definitions for sub containers                                                                    |
 | task_role_arn                    | see. http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html                         |
 
+`WRAPBOX_CMD_INDEX` environment variable is available in `run_cmd` and you can distinguish logs from each command like below:
+
+```
+log_configuration:
+  log_driver: syslog
+  options:
+    syslog-address: "tcp://192.168.0.42:123"
+    env: WRAPBOX_CMD_INDEX
+    tag: wrapbox-{{ printf "%03s" (.ExtraAttributes nil).WRAPBOX_CMD_INDEX }}
+```
+
 ### for docker
 | name                 | desc                                                        |
 | -------------------- | ----------------------------------------------------------- |

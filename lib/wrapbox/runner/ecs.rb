@@ -76,14 +76,15 @@ module Wrapbox
 
       def run_cmd(cmds, container_definition_overrides: {}, **parameters)
         task_definition = register_task_definition(container_definition_overrides)
-        parameter = Parameter.new(**parameters)
 
-        ths = cmds.map do |cmd|
-          Thread.new(cmd) do |c|
+        ths = cmds.map.with_index do |cmd, idx|
+          Thread.new(cmd, idx) do |c, i|
+            Thread.current[:cmd_index] = i
+            envs = (parameters[:environments] || []) + [{name: "WRAPBOX_CMD_INDEX", value: i.to_s}]
             run_task(
               task_definition.task_definition_arn, nil, nil, nil,
               c.split(/\s+/),
-              parameter
+              Parameter.new(**parameters.merge(environments: envs))
             )
           end
         end
@@ -111,7 +112,7 @@ module Wrapbox
           task_status = fetch_task_status(cl, task.task_arn)
 
           # If exit_code is nil, Container is force killed or ECS failed to launch Container by Irregular situation
-          error_message = "Container #{task_definition_name} is failed. task=#{task.task_arn}, exit_code=#{task_status[:exit_code]}, task_stopped_reason=#{task_status[:stopped_reason]}, container_stopped_reason=#{task_status[:container_stopped_reason]}"
+          error_message = build_error_message(task_definition_name, task.task_arn, task_status)
           raise ContainerAbnormalEnd, error_message unless task_status[:exit_code]
           raise ExecutionFailure, error_message unless task_status[:exit_code] == 0
 
@@ -195,9 +196,7 @@ module Wrapbox
         rescue LaunchFailure
           if launch_try_count >= parameter.launch_retry
             task_status = fetch_task_status(cl, task.task_arn)
-  
-            error_message = "Container #{task_definition_name} is failed. task=#{task.task_arn}, exit_code=#{task_status[:exit_code]}, task_stopped_reason=#{task_status[:stopped_reason]}, container_stopped_reason=#{task_status[:container_stopped_reason]}"
-            raise LaunchFailure, error_message
+            raise LaunchFailure, build_error_message(task_definition_name, task.task_arn, task_status)
           else
             launch_try_count += 1
             @logger.debug("Retry Create Task after #{current_retry_interval} sec")
@@ -343,6 +342,13 @@ module Wrapbox
           overrides: overrides,
           started_by: "wrapbox-#{Wrapbox::VERSION}",
         }
+      end
+
+      def build_error_message(task_definition_name, task_arn, task_status)
+        error_message = "Container #{task_definition_name} is failed. task=#{task_arn}, "
+        error_message << "cmd_index=#{Thread.current[:cmd_index]}, " if Thread.current[:cmd_index]
+        error_message << "exit_code=#{task_status[:exit_code]}, task_stopped_reason=#{task_status[:stopped_reason]}, container_stopped_reason=#{task_status[:container_stopped_reason]}"
+        error_message
       end
 
       class Cli < Thor
