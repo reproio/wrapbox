@@ -229,7 +229,7 @@ module Wrapbox
         end
       rescue Aws::Waiters::Errors::TooManyAttemptsError
         client.stop_task({
-          cluster: cl,
+          cluster: cluster,
           task: task_arn,
           reason: "process timeout",
         })
