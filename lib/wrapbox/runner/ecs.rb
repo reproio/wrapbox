@@ -362,6 +362,8 @@ module Wrapbox
         method_option :config, aliases: "-f", required: true, banner: "YAML_FILE", desc: "yaml file path"
         method_option :config_name, aliases: "-n", required: true, default: "default"
         method_option :cluster, aliases: "-c"
+        method_option :cpu, type: :numeric
+        method_option :memory, type: :numeric
         method_option :environments, aliases: "-e"
         method_option :task_role_arn
         method_option :timeout, type: :numeric
@@ -386,7 +388,12 @@ module Wrapbox
             execution_retry: options[:execution_retry],
             max_retry_interval: options[:max_retry_interval]
           }.reject { |_, v| v.nil? }
-          runner.run_cmd(args, environments: environments, **run_options)
+          if options[:cpu] || options[:memory]
+            container_definition_overrides = {cpu: options[:cpu], memory: options[:memory]}.reject { |_, v| v.nil? }
+          else
+            container_definition_overrides = {}
+          end
+          runner.run_cmd(args, environments: environments, container_definition_overrides: container_definition_overrides, **run_options)
         end
       end
     end

@@ -101,6 +101,8 @@ module Wrapbox
         desc "run_cmd [shell command]", "Run shell on docker"
         method_option :config, aliases: "-f", required: true, banner: "YAML_FILE", desc: "yaml file path"
         method_option :config_name, aliases: "-n", required: true, default: "default"
+        method_option :cpu, type: :numeric
+        method_option :memory, type: :numeric
         method_option :environments, aliases: "-e"
         def run_cmd(*args)
           repo = Wrapbox::ConfigRepository.new.tap { |r| r.load_yaml(options[:config]) }
@@ -110,7 +112,12 @@ module Wrapbox
           environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
             {name: k, value: v}
           end
-          runner.run_cmd(args, environments: environments)
+          if options[:cpu] || options[:memory]
+            container_definition_overrides = {cpu: options[:cpu], memory: options[:memory]}.reject { |_, v| v.nil? }
+          else
+            container_definition_overrides = {}
+          end
+          runner.run_cmd(args, environments: environments, container_definition_overrides: container_definition_overrides)
         end
       end
     end
