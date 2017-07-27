@@ -374,6 +374,7 @@ module Wrapbox
             {name: k, value: v}
           end
           run_options = {
+            cluster: options[:cluster],
             task_role_arn: options[:task_role_arn],
             timeout: options[:timeout],
             launch_timeout: options[:launch_timeout],
