@@ -263,6 +263,7 @@ module Wrapbox
           end
         end
 
+        @logger.debug("Container Definitions: #{container_definitions}")
         register_retry_count = 0
         begin
           client.register_task_definition({
