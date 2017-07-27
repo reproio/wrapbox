@@ -4,6 +4,7 @@ require "thor"
 require "yaml"
 require "active_support/core_ext/hash"
 require "logger"
+require "pp"
 
 require "wrapbox/config_repository"
 require "wrapbox/version"
@@ -143,8 +144,10 @@ module Wrapbox
         current_retry_interval = parameter.retry_interval
 
         begin
+          run_task_options = build_run_task_options(task_definition_arn, class_name, method_name, args, command, cl, parameter.environments, parameter.task_role_arn)
+          @logger.debug("Task Options: #{run_task_options}")
           task = client
-            .run_task(build_run_task_options(task_definition_arn, class_name, method_name, args, command, cl, parameter.environments, parameter.task_role_arn))
+            .run_task(run_task_options)
             .tasks[0]
 
           raise LackResource unless task # this case is almost lack of container resource.
