@@ -210,19 +210,8 @@ module Wrapbox
         end
       end
 
-      def wait_task_running(cluster, task_arn, launch_timeout)
-        client.wait_until(:tasks_running, cluster: cluster, tasks: [task_arn]) do |w|
-          if launch_timeout
-            w.delay = WAIT_DELAY
-            w.max_attempts = launch_timeout / w.delay
-          else
-            w.max_attempts = nil
-          end
-        end
-      end
-
-      def wait_task_stopped(cluster, task_arn, timeout)
-        client.wait_until(:tasks_stopped, cluster: cluster, tasks: [task_arn]) do |w|
+      def wait_until_with_timeout(cluster, task_arn, timeout, waiter_name)
+        client.wait_until(waiter_name, cluster: cluster, tasks: [task_arn]) do |w|
           if timeout
             w.delay = WAIT_DELAY
             w.max_attempts = timeout / w.delay
@@ -230,13 +219,21 @@ module Wrapbox
             w.max_attempts = nil
           end
         end
+      end
+
+      def wait_task_running(cluster, task_arn, launch_timeout)
+        wait_until_with_timeout(cluster, task_arn, launch_timeout, :tasks_running)
+      end
+
+      def wait_task_stopped(cluster, task_arn, execution_timeout)
+        wait_until_with_timeout(cluster, task_arn, execution_timeout, :tasks_stopped)
       rescue Aws::Waiters::Errors::TooManyAttemptsError
         client.stop_task({
           cluster: cluster,
           task: task_arn,
           reason: "process timeout",
         })
-        raise ExecutionTimeout, "Container #{task_definition_name} is timeout. task=#{task_arn}, timeout=#{timeout}"
+        raise ExecutionTimeout, "Container #{task_definition_name} is timeout. task=#{task_arn}, timeout=#{execution_timeout}"
       end
 
       def fetch_task_status(cluster, task_arn)
