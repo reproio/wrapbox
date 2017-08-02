@@ -41,6 +41,9 @@ module Wrapbox
         @task_role_arn = options[:task_role_arn]
         $stdout.sync = true
         @logger = Logger.new($stdout)
+        @notifiers = options[:notifiers].map do |notifier_definition|
+          Notifiers.build_notifier(notifier_definition)
+        end
       end
 
       class Parameter

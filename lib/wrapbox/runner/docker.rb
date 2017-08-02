@@ -17,6 +17,9 @@ module Wrapbox
         @name = options[:name]
         @container_definition = options[:container_definition]
         @keep_container = options[:keep_container]
+        @notifiers = options[:notifiers].map do |notifier_definition|
+          Notifiers.build_notifier(notifier_definition)
+        end
       end
 
       def run(class_name, method_name, args, container_definition_overrides: {}, environments: [])
@@ -57,6 +60,10 @@ module Wrapbox
       end
 
       def exec_docker(definition:, cmd:, environments: [])
+        @notifiers.each do |n|
+          n.notify(definition: definition, cmd: ["bundle", "exec", "rake", "wrapbox:run"], environments: envs)
+        end
+
         ::Docker::Image.create("fromImage" => definition[:image])
         options = {
           "Image" => definition[:image],
