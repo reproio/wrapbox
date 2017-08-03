@@ -84,7 +84,7 @@ module Wrapbox
       end
 
       def run(class_name, method_name, args, container_definition_overrides: {}, **parameters)
-        task_definition = register_task_definition(container_definition_overrides)
+        task_definition = prepare_task_definition(container_definition_overrides)
         parameter = Parameter.new(**parameters)
 
         run_task(
@@ -95,7 +95,7 @@ module Wrapbox
       end
 
       def run_cmd(cmds, container_definition_overrides: {}, **parameters)
-        task_definition = register_task_definition(container_definition_overrides)
+        task_definition = prepare_task_definition(container_definition_overrides)
 
         ths = cmds.map.with_index do |cmd, idx|
           Thread.new(cmd, idx) do |c, i|
@@ -266,11 +266,15 @@ module Wrapbox
         }
       end
 
-      def register_task_definition(container_definition_overrides)
+      def prepare_task_definition(container_definition_overrides)
         if use_existing_task_definition?
-          return client.describe_task_definition(task_definition: task_definition_name).task_definition
+          client.describe_task_definition(task_definition: task_definition_name).task_definition
+        else
+          register_task_definition(container_definition_overrides)
         end
+      end
 
+      def register_task_definition(container_definition_overrides)
         definition = container_definition
           .merge(container_definition_overrides)
           .merge(name: main_container_name)
