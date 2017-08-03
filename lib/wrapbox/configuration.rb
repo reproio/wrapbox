@@ -12,6 +12,7 @@ module Wrapbox
     :retry_interval,
     :retry_interval_multiplier,
     :container_definition,
+    :task_definition,
     :additional_container_definitions,
     :task_role_arn,
     :keep_container
@@ -26,7 +27,8 @@ module Wrapbox
         config["retry"] || 0,
         config["retry_interval"] || 1,
         config["retry_interval_multiplier"] || 2,
-        config["container_definition"].deep_symbolize_keys,
+        config["container_definition"] && config["container_definition"].deep_symbolize_keys,
+        config["task_definition"] && config["task_definition"].deep_symbolize_keys,
         config["additional_container_definitions"] || [],
         config["task_role_arn"],
         config["keep_container"]

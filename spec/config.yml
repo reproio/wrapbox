@@ -7,6 +7,9 @@ default:
     cpu: 256
     memory: 256
     essential: true
+  # task_definition:
+    # task_definition_name: task_def_name:154
+    # main_container_name: container1
 
 docker:
   runner: docker

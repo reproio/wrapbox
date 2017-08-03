@@ -24,7 +24,7 @@ Write config.yml
 
 ```yaml
 default:
-  cluster: ecsr-test
+  cluster: wrapbox
   runner: ecs
   region: ap-northeast-1
   container_definition:
@@ -40,6 +40,15 @@ docker:
     image: joker1007/wrapbox
     cpu: 512
     memory: 1024
+
+ecs2:
+  cluster: wrapbox
+  runner: ecs
+  region: ap-northeast-1
+  # Use already existing task definition
+  task_definition:
+    task_definition_name: foo_task:1
+    main_container_name: container_name_where_command_is_executed
 ```
 
 #### run by CLI
@@ -53,12 +62,14 @@ $ wrapbox ecs run_cmd -f config.yml \
 
 #### run by ruby
 
+Run `rake wrapbox:run` with `CLASS_NAME_ENV` and `METHOD_NAME_ENV` and `METHOD_ARGS_ENV`
+
 ```ruby
 Wrapbox.configure do |c|
   c.load_yaml(File.expand_path("../config.yml", __FILE__))
 end
 
-# runs TestJob#perform in ECS container
+# runs TestJob#perform("arg1", ["arg2", "arg3"]) in ECS container via `rake wrapbox:run`
 Wrapbox.run("TestJob", :perform, ["arg1", ["arg2", "arg3"]], environments: [{name: "RAILS_ENV", value: "development"}]) # use default config
 # runs TestJob#perform in local docker container (Use docker cli)
 Wrapbox.run("TestJob", :perform, ["arg1", ["arg2", "arg3"]], config_name: :docker, environments: [{name: "RAILS_ENV", value: "development"}]) # use docker config

@@ -28,6 +28,8 @@ module Wrapbox
         :cluster,
         :region,
         :container_definition,
+        :task_definition_name,
+        :main_container_name,
         :additional_container_definitions,
         :task_role_arn
 
@@ -36,7 +38,24 @@ module Wrapbox
         @revision = options[:revision]
         @cluster = options[:cluster]
         @region = options[:region]
+
+        if options[:container_definition] && options[:task_definition]
+          raise "Please set only one of `container_definition` and `task_definition`"
+        end
         @container_definition = options[:container_definition]
+        @task_definition_info = options[:task_definition]
+
+        if @container_definition
+          @task_definition_name = "wrapbox_#{@name}"
+          @main_container_name = @container_definition[:name] || @task_definition_name
+        elsif @task_definition_info
+          @task_definition_name = @task_definition_info[:task_definition_name]
+          @main_container_name = @task_definition_info[:main_container_name]
+          unless @main_container_name
+            raise "Please set `task_definition[:main_container_name]`"
+          end
+        end
+
         @additional_container_definitions = options[:additional_container_definitions]
         @task_role_arn = options[:task_role_arn]
         $stdout.sync = true
@@ -65,7 +84,7 @@ module Wrapbox
       end
 
       def run(class_name, method_name, args, container_definition_overrides: {}, **parameters)
-        task_definition = register_task_definition(container_definition_overrides)
+        task_definition = prepare_task_definition(container_definition_overrides)
         parameter = Parameter.new(**parameters)
 
         run_task(
@@ -76,7 +95,7 @@ module Wrapbox
       end
 
       def run_cmd(cmds, container_definition_overrides: {}, **parameters)
-        task_definition = register_task_definition(container_definition_overrides)
+        task_definition = prepare_task_definition(container_definition_overrides)
 
         ths = cmds.map.with_index do |cmd, idx|
           Thread.new(cmd, idx) do |c, i|
@@ -93,6 +112,10 @@ module Wrapbox
       end
 
       private
+
+      def use_existing_task_definition?
+        !!@task_definition_info
+      end
 
       def run_task(task_definition_arn, class_name, method_name, args, command, parameter)
         cl = parameter.cluster || self.cluster
@@ -130,10 +153,6 @@ module Wrapbox
             retry
           end
         end
-      end
-
-      def task_definition_name
-        "wrapbox_#{name}"
       end
 
       def create_task(task_definition_arn, class_name, method_name, args, command, parameter)
@@ -233,12 +252,12 @@ module Wrapbox
           task: task_arn,
           reason: "process timeout",
         })
-        raise ExecutionTimeout, "Container #{task_definition_name} is timeout. task=#{task_arn}, timeout=#{execution_timeout}"
+        raise ExecutionTimeout, "Task #{task_definition_name} is timeout. task=#{task_arn}, timeout=#{execution_timeout}"
       end
 
       def fetch_task_status(cluster, task_arn)
         task = client.describe_tasks(cluster: cluster, tasks: [task_arn]).tasks[0]
-        container = task.containers.find { |c| c.name == task_definition_name }
+        container = task.containers.find { |c| c.name == main_container_name }
         {
           last_status: task.last_status,
           exit_code: container.exit_code,
@@ -247,10 +266,18 @@ module Wrapbox
         }
       end
 
+      def prepare_task_definition(container_definition_overrides)
+        if use_existing_task_definition?
+          client.describe_task_definition(task_definition: task_definition_name).task_definition
+        else
+          register_task_definition(container_definition_overrides)
+        end
+      end
+
       def register_task_definition(container_definition_overrides)
         definition = container_definition
           .merge(container_definition_overrides)
-          .merge(name: task_definition_name)
+          .merge(name: main_container_name)
         container_definitions = [definition, *additional_container_definitions]
 
         if revision
@@ -328,7 +355,7 @@ module Wrapbox
         overrides = {
           container_overrides: [
             {
-              name: task_definition_name,
+              name: main_container_name,
               command: command,
               environment: env,
             },
@@ -346,7 +373,7 @@ module Wrapbox
       end
 
       def build_error_message(task_definition_name, task_arn, task_status)
-        error_message = "Container #{task_definition_name} is failed. task=#{task_arn}, "
+        error_message = "Task #{task_definition_name} is failed. task=#{task_arn}, "
         error_message << "cmd_index=#{Thread.current[:cmd_index]}, " if Thread.current[:cmd_index]
         error_message << "exit_code=#{task_status[:exit_code]}, task_stopped_reason=#{task_status[:stopped_reason]}, container_stopped_reason=#{task_status[:container_stopped_reason]}"
         error_message
