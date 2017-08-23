@@ -35,10 +35,11 @@ module Wrapbox
 
         environments = extract_environments(environments)
 
+        cmds << nil if cmds.empty?
         ths = cmds.map.with_index do |cmd, idx|
           Thread.new(cmd, idx) do |c, i|
             envs = environments + ["WRAPBOX_CMD_INDEX=#{idx}"]
-            exec_docker(definition: definition, cmd: c.split(/\s+/), environments: envs)
+            exec_docker(definition: definition, cmd: c&.split(/\s+/), environments: envs)
           end
         end
         ths.each(&:join)
@@ -62,7 +63,7 @@ module Wrapbox
           "Image" => definition[:image],
           "Cmd" => cmd,
           "Env" => environments,
-        }
+        }.tap { |o| o["Cmd"] = cmd if cmd }
         options["HostConfig"] = {}
         options["HostConfig"]["Cpu"] = definition[:cpu] if definition[:cpu]
         options["HostConfig"]["Memory"] = definition[:memory] * 1024 * 1024 if definition[:memory]
