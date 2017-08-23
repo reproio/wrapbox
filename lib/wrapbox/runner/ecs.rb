@@ -97,6 +97,7 @@ module Wrapbox
       def run_cmd(cmds, container_definition_overrides: {}, **parameters)
         task_definition = prepare_task_definition(container_definition_overrides)
 
+        cmds << "" if cmds.empty?
         ths = cmds.map.with_index do |cmd, idx|
           Thread.new(cmd, idx) do |c, i|
             Thread.current[:cmd_index] = i

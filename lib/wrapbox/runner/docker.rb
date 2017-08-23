@@ -35,6 +35,7 @@ module Wrapbox
 
         environments = extract_environments(environments)
 
+        cmds << "" if cmds.empty?
         ths = cmds.map.with_index do |cmd, idx|
           Thread.new(cmd, idx) do |c, i|
             envs = environments + ["WRAPBOX_CMD_INDEX=#{idx}"]
