@@ -15,7 +15,8 @@ module Wrapbox
     :task_definition,
     :additional_container_definitions,
     :task_role_arn,
-    :keep_container
+    :keep_container,
+    :log_fetcher
   ) do
     def self.load_config(config)
       new(
@@ -31,7 +32,8 @@ module Wrapbox
         config["task_definition"] && config["task_definition"].deep_symbolize_keys,
         config["additional_container_definitions"] || [],
         config["task_role_arn"],
-        config["keep_container"]
+        config["keep_container"],
+        config["log_fetcher"] && config["log_fetcher"].deep_symbolize_keys
       )
     end
 
