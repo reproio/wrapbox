@@ -163,7 +163,6 @@ module Wrapbox
           if @log_fetcher
             begin
               @log_fetcher.stop
-              @log_fetcher.join
             rescue => e
               @logger.warn(e)
             end

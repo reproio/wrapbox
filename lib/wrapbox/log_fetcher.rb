@@ -1,5 +1,8 @@
 require "active_support/core_ext/string"
 
+# LogFetcher Implementation requires two methods.
+# - run (start log fetching asynchronously)
+# - stop (stop log fetching)
 module Wrapbox
   module LogFetcher
     def self.new(type, **options)

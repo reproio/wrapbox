@@ -1,8 +1,15 @@
 module Wrapbox
   module LogFetcher
     class Papertrail
+      STOP_WAIT_TIMELIMIT = 10
+
       def initialize(query: nil, delay: 2, **options)
-        require 'papertrail/cli'
+        begin
+          require 'papertrail/cli'
+        rescue LoadError
+          $stderr.puts "Require papertrail gem"
+          exit 1
+        end
 
         # see. https://github.com/papertrail/papertrail-cli/blob/master/lib/papertrail/cli.rb
         @query = query
@@ -17,10 +24,7 @@ module Wrapbox
 
       def stop
         @stop = true
-      end
-
-      def join
-        @loop_thread.join
+        @loop_thread.join(STOP_WAIT_TIMELIMIT)
       end
 
       def main_loop
