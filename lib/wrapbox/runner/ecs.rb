@@ -7,6 +7,7 @@ require "logger"
 require "pp"
 
 require "wrapbox/config_repository"
+require "wrapbox/log_fetcher"
 require "wrapbox/version"
 
 module Wrapbox
@@ -60,6 +61,10 @@ module Wrapbox
         @task_role_arn = options[:task_role_arn]
         $stdout.sync = true
         @logger = Logger.new($stdout)
+        if options[:log_fetcher]
+          type = options[:log_fetcher].delete(:type)
+          @log_fetcher = LogFetcher.new(type, options[:log_fetcher])
+        end
       end
 
       class Parameter
@@ -124,6 +129,7 @@ module Wrapbox
 
         begin
           task = create_task(task_definition_arn, class_name, method_name, args, command, parameter)
+          @log_fetcher.run if @log_fetcher
 
           @logger.debug("Launch Task: #{task.task_arn}")
 
@@ -152,6 +158,14 @@ module Wrapbox
             @logger.debug("Retry Execution after #{EXECUTION_RETRY_INTERVAL} sec")
             sleep EXECUTION_RETRY_INTERVAL
             retry
+          end
+        ensure
+          if @log_fetcher
+            begin
+              @log_fetcher.stop
+            rescue => e
+              @logger.warn(e)
+            end
           end
         end
       end
