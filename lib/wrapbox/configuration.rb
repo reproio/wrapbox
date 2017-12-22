@@ -12,8 +12,18 @@ module Wrapbox
     :retry_interval,
     :retry_interval_multiplier,
     :container_definition,
+    :container_definitions,
+    :volumes,
+    :placement_constraints,
+    :placement_strategy,
+    :launch_type,
+    :requires_compatibilities,
     :task_definition,
     :additional_container_definitions,
+    :network_mode,
+    :network_configuration,
+    :cpu,
+    :memory,
     :task_role_arn,
     :keep_container,
     :log_fetcher
@@ -28,12 +38,22 @@ module Wrapbox
         config["retry"] || 0,
         config["retry_interval"] || 1,
         config["retry_interval_multiplier"] || 2,
-        config["container_definition"] && config["container_definition"].deep_symbolize_keys,
-        config["task_definition"] && config["task_definition"].deep_symbolize_keys,
-        config["additional_container_definitions"] || [],
+        config["container_definition"]&.deep_symbolize_keys,
+        config["container_definitions"]&.map(&:deep_symbolize_keys) || [],
+        config["volumes"]&.map(&:deep_symbolize_keys) || [],
+        config["placement_constraints"]&.map(&:deep_symbolize_keys) || [],
+        config["placement_strategy"]&.map(&:deep_symbolize_keys) || [],
+        config["launch_type"],
+        config["requires_compatibilities"] || ["EC2"],
+        config["task_definition"]&.deep_symbolize_keys,
+        config["additional_container_definitions"]&.map(&:deep_symbolize_keys) || [],
+        config["network_mode"],
+        config["network_configuration"]&.deep_symbolize_keys,
+        config["cpu"]&.to_s,
+        config["memory"]&.to_s,
         config["task_role_arn"],
         config["keep_container"],
-        config["log_fetcher"] && config["log_fetcher"].deep_symbolize_keys
+        config["log_fetcher"]&.deep_symbolize_keys
       )
     end
 
@@ -43,10 +63,11 @@ module Wrapbox
       super
     end
 
-    def build_runner
-      raise "#{runner} is unsupported runner" unless AVAILABLE_RUNNERS.include?(runner.to_sym)
-      require "wrapbox/runner/#{runner}"
-      Wrapbox::Runner.const_get(runner.to_s.camelcase).new(to_h)
+    def build_runner(overrided_runner = nil)
+      r = overrided_runner || runner
+      raise "#{r} is unsupported runner" unless AVAILABLE_RUNNERS.include?(r.to_sym)
+      require "wrapbox/runner/#{r}"
+      Wrapbox::Runner.const_get(r.to_s.camelcase).new(to_h)
     end
 
     def run(class_name, method_name, args, **options)

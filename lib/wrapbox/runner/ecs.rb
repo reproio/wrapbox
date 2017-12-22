@@ -5,6 +5,7 @@ require "yaml"
 require "active_support/core_ext/hash"
 require "logger"
 require "pp"
+require "shellwords"
 
 require "wrapbox/config_repository"
 require "wrapbox/log_fetcher"
@@ -28,10 +29,18 @@ module Wrapbox
         :revision,
         :cluster,
         :region,
-        :container_definition,
+        :container_definitions,
+        :volumes,
+        :placement_constraints,
+        :placement_strategy,
+        :launch_type,
+        :requires_compatibilities,
         :task_definition_name,
         :main_container_name,
-        :additional_container_definitions,
+        :network_mode,
+        :network_configuration,
+        :cpu,
+        :memory,
         :task_role_arn
 
       def initialize(options)
@@ -39,16 +48,32 @@ module Wrapbox
         @revision = options[:revision]
         @cluster = options[:cluster]
         @region = options[:region]
+        @volumes = options[:volumes]
+        @placement_constraints = options[:placement_constraints]
+        @placement_strategy = options[:placement_strategy]
+        @launch_type = options[:launch_type]
+        @requires_compatibilities = options[:requires_compatibilities]
+        @network_mode = options[:network_mode]
+        @network_configuration = options[:network_configuration]
+        @cpu = options[:cpu]
+        @memory = options[:memory]
 
-        if options[:container_definition] && options[:task_definition]
+        if (options[:container_definition] || options[:container_definitions].empty?.!) && options[:task_definition]
           raise "Please set only one of `container_definition` and `task_definition`"
         end
-        @container_definition = options[:container_definition]
+
+        if options[:additional_container_definitions].empty?.!
+          warn "`additional_container_definitions` is deprecated parameter, Use `container_definitions` instead of it"
+        end
+
+        @container_definitions = options[:container_definition] ? [options[:container_definition]] : options[:container_definitions]
+        @container_definitions.concat(options[:additional_container_definitions]) # deprecated
+
         @task_definition_info = options[:task_definition]
 
-        if @container_definition
+        if !@container_definitions.empty?
           @task_definition_name = "wrapbox_#{@name}"
-          @main_container_name = @container_definition[:name] || @task_definition_name
+          @main_container_name = @container_definitions[0][:name] || @task_definition_name
         elsif @task_definition_info
           @task_definition_name = @task_definition_info[:task_definition_name]
           @main_container_name = @task_definition_info[:main_container_name]
@@ -57,7 +82,11 @@ module Wrapbox
           end
         end
 
-        @additional_container_definitions = options[:additional_container_definitions]
+        @container_definitions.each do |d|
+          d[:docker_labels]&.stringify_keys!
+          d.dig(:log_configuration, :options)&.stringify_keys!
+        end
+
         @task_role_arn = options[:task_role_arn]
         $stdout.sync = true
         @logger = Logger.new($stdout)
@@ -109,7 +138,7 @@ module Wrapbox
             envs = (parameters[:environments] || []) + [{name: "WRAPBOX_CMD_INDEX", value: i.to_s}]
             run_task(
               task_definition.task_definition_arn, nil, nil, nil,
-              c&.split(/\s+/),
+              c ? Shellwords.shellsplit(c) : nil,
               Parameter.new(**parameters.merge(environments: envs))
             )
           end
@@ -290,10 +319,12 @@ module Wrapbox
       end
 
       def register_task_definition(container_definition_overrides)
-        definition = container_definition
+        main_container_definition = container_definitions[0]
+        main_container_definition = main_container_definition
           .merge(container_definition_overrides)
           .merge(name: main_container_name)
-        container_definitions = [definition, *additional_container_definitions]
+
+        overrided_container_definitions = [main_container_definition, *(container_definitions.drop(1))]
 
         if revision
           begin
@@ -302,12 +333,17 @@ module Wrapbox
           end
         end
 
-        @logger.debug("Container Definitions: #{container_definitions}")
+        @logger.debug("Container Definitions: #{overrided_container_definitions}")
         register_retry_count = 0
         begin
           client.register_task_definition({
             family: task_definition_name,
-            container_definitions: container_definitions,
+            cpu: cpu,
+            memory: memory,
+            network_mode: network_mode,
+            container_definitions: overrided_container_definitions,
+            volumes: volumes,
+            requires_compatibilities: requires_compatibilities,
           }).task_definition
         rescue Aws::ECS::Errors::ClientException
           raise if register_retry_count > 2
@@ -382,6 +418,10 @@ module Wrapbox
           cluster: cluster || self.cluster,
           task_definition: task_definition_arn,
           overrides: overrides,
+          placement_strategy: placement_strategy,
+          placement_constraints: placement_constraints,
+          launch_type: launch_type,
+          network_configuration: network_configuration,
           started_by: "wrapbox-#{Wrapbox::VERSION}",
         }
       end

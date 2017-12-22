@@ -2,6 +2,7 @@ require "open3"
 require "multi_json"
 require "docker"
 require "thor"
+require "shellwords"
 
 module Wrapbox
   module Runner
@@ -15,7 +16,14 @@ module Wrapbox
 
       def initialize(options)
         @name = options[:name]
-        @container_definition = options[:container_definition]
+        @container_definitions = options[:container_definition] ? [options[:container_definition]] : options[:container_definitions][0]
+
+        if @container_definitions.size >= 2
+          raise "Docker runner does not support multi container currently"
+        end
+
+        @container_definition = @container_definitions[0]
+
         @keep_container = options[:keep_container]
       end
 
@@ -39,7 +47,11 @@ module Wrapbox
         ths = cmds.map.with_index do |cmd, idx|
           Thread.new(cmd, idx) do |c, i|
             envs = environments + ["WRAPBOX_CMD_INDEX=#{idx}"]
-            exec_docker(definition: definition, cmd: c&.split(/\s+/), environments: envs)
+            exec_docker(
+              definition: definition,
+              cmd: c ? Shellwords.shellsplit(c) : nil,
+              environments: envs
+            )
           end
         end
         ths.each(&:join)
@@ -61,7 +73,6 @@ module Wrapbox
         ::Docker::Image.create("fromImage" => definition[:image])
         options = {
           "Image" => definition[:image],
-          "Cmd" => cmd,
           "Env" => environments,
         }.tap { |o| o["Cmd"] = cmd if cmd }
         options["HostConfig"] = {}
