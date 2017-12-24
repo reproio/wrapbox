@@ -16,7 +16,7 @@ module Wrapbox
 
       def initialize(options)
         @name = options[:name]
-        @container_definitions = options[:container_definition] ? [options[:container_definition]] : options[:container_definitions][0]
+        @container_definitions = options[:container_definition] ? [options[:container_definition]] : options[:container_definitions]
 
         if @container_definitions.size >= 2
           raise "Docker runner does not support multi container currently"
