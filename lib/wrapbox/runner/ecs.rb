@@ -138,7 +138,7 @@ module Wrapbox
             envs = (parameters[:environments] || []) + [{name: "WRAPBOX_CMD_INDEX", value: i.to_s}]
             run_task(
               task_definition.task_definition_arn, nil, nil, nil,
-              c ? Shellwords.shellsplit(c) : nil,
+              c&.shellsplit,
               Parameter.new(**parameters.merge(environments: envs))
             )
           end

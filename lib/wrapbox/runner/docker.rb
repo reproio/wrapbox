@@ -49,7 +49,7 @@ module Wrapbox
             envs = environments + ["WRAPBOX_CMD_INDEX=#{idx}"]
             exec_docker(
               definition: definition,
-              cmd: c ? Shellwords.shellsplit(c) : nil,
+              cmd: c&.shellsplit,
               environments: envs
             )
           end
