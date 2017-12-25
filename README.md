@@ -27,19 +27,19 @@ default:
   cluster: wrapbox
   runner: ecs
   region: ap-northeast-1
-  container_definition:
-    image: joker1007/wrapbox
-    cpu: 512
-    memory: 1024
-    essential: true
+  container_definitions:
+    - image: joker1007/wrapbox
+      cpu: 512
+      memory: 1024
+      essential: true
 
 docker:
   runner: docker
   rm: true
-  container_definition:
-    image: joker1007/wrapbox
-    cpu: 512
-    memory: 1024
+  container_definitions:
+    - image: joker1007/wrapbox
+      cpu: 512
+      memory: 1024
 
 ecs2:
   cluster: wrapbox
@@ -88,13 +88,20 @@ Wrapbox.run_cmd(["ls ."], environments: [{name: "RAILS_ENV", value: "development
 
 ### for ECS
 
-| name                             | desc                                                                                                        |
-| --------------------             | ------------------------------------------------                                                            |
-| cluster                          | target ECS cluster name                                                                                     |
-| region                           | region of ECS cluster                                                                                       |
-| container_definition             | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
-| additional_container_definitions | Container definitions for sub containers                                                                    |
-| task_role_arn                    | see. http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html                         |
+| name                  | desc                                                                                                        |
+| --------------------  | ------------------------------------------------                                                            |
+| cluster               | target ECS cluster name                                                                                     |
+| region                | region of ECS cluster                                                                                       |
+| container_definitions | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| task_role_arn         | see. http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html                         |
+| volumes               | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| placement_constraints | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| placement_strategy    | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| launch_type           | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#run_task-instance_method                 |
+| newtork_mode          | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| network_configuration | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#run_task-instance_method                 |
+| cpu    | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| memory    | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
 
 `WRAPBOX_CMD_INDEX` environment variable is available in `run_cmd` and you can distinguish logs from each command like below:
 
@@ -108,11 +115,11 @@ log_configuration:
 ```
 
 ### for docker
-| name                 | desc                                                        |
-| -------------------- | ----------------------------------------------------------- |
-| container_definition | only use `image`, `cpu`, `memory`, and `memory_reservation` |
-| rm                   | If true, add `--rm` to cmd options                          |
-| use_sudo             | If true, invoke `sudo docker` command                       |
+| name                  | desc                                                        |
+| --------------------  | ----------------------------------------------------------- |
+| container_definitions | only use `image`, `cpu`, `memory`, and `memory_reservation` |
+| rm                    | If true, add `--rm` to cmd options                          |
+| use_sudo              | If true, invoke `sudo docker` command                       |
 
 ## API
 
