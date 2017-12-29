@@ -58,16 +58,16 @@ module Wrapbox
         @cpu = options[:cpu]
         @memory = options[:memory]
 
-        if (options[:container_definition] || options[:container_definitions].empty?.!) && options[:task_definition]
+        @container_definitions = options[:container_definition] ? [options[:container_definition]] : options[:container_definitions] || []
+        @container_definitions.concat(options[:additional_container_definitions]) if options[:additional_container_definitions] # deprecated
+
+        if !@container_definitions.empty? && options[:task_definition]
           raise "Please set only one of `container_definition` and `task_definition`"
         end
 
-        if options[:additional_container_definitions].empty?.!
+        if options[:additional_container_definitions] && !options[:additional_container_definitions].empty?
           warn "`additional_container_definitions` is deprecated parameter, Use `container_definitions` instead of it"
         end
-
-        @container_definitions = options[:container_definition] ? [options[:container_definition]] : options[:container_definitions]
-        @container_definitions.concat(options[:additional_container_definitions]) # deprecated
 
         @task_definition_info = options[:task_definition]
 
