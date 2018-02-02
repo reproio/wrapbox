@@ -24,7 +24,7 @@ module Wrapbox
 
       def stop
         @stop = true
-        @loop_thread.join(STOP_WAIT_TIMELIMIT)
+        @loop_thread&.join(STOP_WAIT_TIMELIMIT)
       end
 
       def main_loop
