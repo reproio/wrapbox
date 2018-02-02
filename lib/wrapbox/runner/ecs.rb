@@ -209,10 +209,12 @@ module Wrapbox
         begin
           run_task_options = build_run_task_options(task_definition_arn, class_name, method_name, args, command, cl, parameter.environments, parameter.task_role_arn)
           @logger.debug("Task Options: #{run_task_options}")
-          task = client
-            .run_task(run_task_options)
-            .tasks[0]
+          resp = client.run_task(run_task_options)
+          task = resp.tasks[0]
 
+          resp.failures.each do |failure|
+            @logger.debug("Failure: Arn=#{failure.arn}, Reason=#{failure.reason}")
+          end
           raise LackResource unless task # this case is almost lack of container resource.
 
           @logger.debug("Create Task: #{task.task_arn}")
