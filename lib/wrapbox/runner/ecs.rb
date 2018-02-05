@@ -409,6 +409,12 @@ module Wrapbox
               name: main_container_name,
               environment: env,
             }.tap { |o| o[:command] = command if command },
+            *container_definitions.drop(1).map do |c|
+              {
+                name: c[:name],
+                environment: env,
+              }
+            end
           ],
         }
         role_arn = task_role_arn || self.task_role_arn
