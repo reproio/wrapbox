@@ -1,5 +1,5 @@
 default:
-  cluster: ecsr-test
+  cluster: <%= ENV["ECS_CLUSTER"] %>
   runner: ecs
   region: ap-northeast-1
   container_definition:

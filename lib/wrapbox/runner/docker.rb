@@ -17,6 +17,7 @@ module Wrapbox
       def initialize(options)
         @name = options[:name]
         @container_definitions = options[:container_definition] ? [options[:container_definition]] : options[:container_definitions]
+        @logger = Logger.new($stdout)
 
         if @container_definitions.size >= 2
           raise "Docker runner does not support multi container currently"
@@ -37,15 +38,16 @@ module Wrapbox
         exec_docker(definition: definition, cmd: ["bundle", "exec", "rake", "wrapbox:run"], environments: envs)
       end
 
-      def run_cmd(cmds,  container_definition_overrides: {}, environments: [])
+      def run_cmd(cmds,  container_definition_overrides: {}, environments: [], ignore_signal: false)
+        ths = []
         definition = container_definition
           .merge(container_definition_overrides)
 
         environments = extract_environments(environments)
 
         cmds << nil if cmds.empty?
-        ths = cmds.map.with_index do |cmd, idx|
-          Thread.new(cmd, idx) do |c, i|
+        cmds.each_with_index do |cmd, idx|
+          ths << Thread.new(cmd, idx) do |c, i|
             envs = environments + ["WRAPBOX_CMD_INDEX=#{idx}"]
             exec_docker(
               definition: definition,
@@ -54,7 +56,23 @@ module Wrapbox
             )
           end
         end
-        ths.each(&:join)
+        ths.each { |th| th&.join }
+
+        true
+      rescue SignalException => e
+        sig = e.is_a?(Interrupt) ? "SIGINT" : e.signm
+        if ignore_signal
+          @logger.info("Receive #{sig} signal. But Docker container continue running")
+        else
+          @logger.info("Receive #{sig} signal. Stop All tasks")
+          ths.each do |th|
+            th.report_on_exception = false
+            th.raise(e)
+          end
+          thread_timeout = 15
+          ths.each { |th| th.join(thread_timeout) }
+        end
+        nil
       end
 
       private
@@ -93,6 +111,9 @@ module Wrapbox
         unless resp["StatusCode"].zero?
           raise ExecutionError, "exit_code=#{resp["StatusCode"]}"
         end
+      rescue SignalException => e
+        sig = e.is_a?(Interrupt) ? "SIGINT" : e.signm
+        container&.kill(signal: sig)
       ensure
         container.remove(force: true) if container && !keep_container
       end
@@ -116,6 +137,7 @@ module Wrapbox
         method_option :cpu, type: :numeric
         method_option :memory, type: :numeric
         method_option :environments, aliases: "-e"
+        method_option :ignore_signal, type: :boolean, default: false, desc: "Even if receive a signal (like TERM, INT, QUIT), Docker container continue running"
         def run_cmd(*args)
           repo = Wrapbox::ConfigRepository.new.tap { |r| r.load_yaml(options[:config]) }
           config = repo.get(options[:config_name])
@@ -129,7 +151,9 @@ module Wrapbox
           else
             container_definition_overrides = {}
           end
-          runner.run_cmd(args, environments: environments, container_definition_overrides: container_definition_overrides)
+          unless runner.run_cmd(args, environments: environments, container_definition_overrides: container_definition_overrides, ignore_signal: options[:ignore_signal])
+            exit 1
+          end
         end
       end
     end
