@@ -60,7 +60,7 @@ module Wrapbox
 
         true
       rescue SignalException => e
-        sig = e.is_a?(Interrupt) ? "SIGINT" : e.signm
+        sig = "SIG#{Signal.signame(e.signo)}"
         if ignore_signal
           @logger.info("Receive #{sig} signal. But Docker container continue running")
         else
@@ -112,7 +112,7 @@ module Wrapbox
           raise ExecutionError, "exit_code=#{resp["StatusCode"]}"
         end
       rescue SignalException => e
-        sig = e.is_a?(Interrupt) ? "SIGINT" : e.signm
+        sig = Signal.signame(e.signo)
         container&.kill(signal: sig)
       ensure
         container.remove(force: true) if container && !keep_container

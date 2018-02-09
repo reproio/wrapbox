@@ -150,7 +150,7 @@ module Wrapbox
 
         true
       rescue SignalException => e
-        sig = e.is_a?(Interrupt) ? "SIGINT" : e.signm
+        sig = "SIG#{Signal.signame(e.signo)}"
         if ignore_signal
           @logger.info("Receive #{sig} signal. But ECS Tasks continue running")
         else
