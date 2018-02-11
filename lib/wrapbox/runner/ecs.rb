@@ -159,8 +159,11 @@ module Wrapbox
             th.report_on_exception = false
             th.raise(e)
           end
-          thread_timeout_buffer = 15
-          ths.each { |th| th.join(TERM_TIMEOUT + thread_timeout_buffer) }
+          wait_until = Time.now + TERM_TIMEOUT + 15 # thread_timeout_buffer
+          ths.each do |th|
+            wait = wait_until - Time.now
+            th.join(wait) if wait.positive?
+          end
         end
         nil
       end
