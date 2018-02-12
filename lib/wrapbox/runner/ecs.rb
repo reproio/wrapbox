@@ -146,7 +146,7 @@ module Wrapbox
             )
           end
         end
-        ths.each { |th| th&.join }
+        ths.each(&:join)
 
         true
       rescue SignalException => e
