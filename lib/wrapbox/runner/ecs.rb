@@ -22,6 +22,7 @@ module Wrapbox
 
       EXECUTION_RETRY_INTERVAL = 3
       WAIT_DELAY = 5
+      TERM_TIMEOUT = 120
       HOST_TERMINATED_REASON_REGEXP = /Host EC2.*terminated/
 
       attr_reader \
@@ -128,12 +129,14 @@ module Wrapbox
         )
       end
 
-      def run_cmd(cmds, container_definition_overrides: {}, **parameters)
+      def run_cmd(cmds, container_definition_overrides: {}, ignore_signal: false, **parameters)
+        ths = []
+
         task_definition = prepare_task_definition(container_definition_overrides)
 
         cmds << nil if cmds.empty?
-        ths = cmds.map.with_index do |cmd, idx|
-          Thread.new(cmd, idx) do |c, i|
+        cmds.each_with_index do |cmd, idx|
+          ths << Thread.new(cmd, idx) do |c, i|
             Thread.current[:cmd_index] = i
             envs = (parameters[:environments] || []) + [{name: "WRAPBOX_CMD_INDEX", value: i.to_s}]
             run_task(
@@ -144,6 +147,25 @@ module Wrapbox
           end
         end
         ths.each(&:join)
+
+        true
+      rescue SignalException => e
+        sig = "SIG#{Signal.signame(e.signo)}"
+        if ignore_signal
+          @logger.info("Receive #{sig} signal. But ECS Tasks continue running")
+        else
+          @logger.info("Receive #{sig} signal. Stop All tasks")
+          ths.each do |th|
+            th.report_on_exception = false
+            th.raise(e)
+          end
+          wait_until = Time.now + TERM_TIMEOUT + 15 # thread_timeout_buffer
+          ths.each do |th|
+            wait = wait_until - Time.now
+            th.join(wait) if wait.positive?
+          end
+        end
+        nil
       end
 
       private
@@ -158,6 +180,8 @@ module Wrapbox
 
         begin
           task = create_task(task_definition_arn, class_name, method_name, args, command, parameter)
+          return unless task # only Task creation aborted by SignalException
+
           @log_fetcher.run if @log_fetcher
 
           @logger.debug("Launch Task: #{task.task_arn}")
@@ -188,6 +212,14 @@ module Wrapbox
             sleep EXECUTION_RETRY_INTERVAL
             retry
           end
+        rescue SignalException
+          client.stop_task(
+            cluster: cl,
+            task: task.task_arn,
+            reason: "signal interrupted"
+          )
+          wait_task_stopped(cl, task.task_arn, TERM_TIMEOUT)
+          @logger.debug("Stop Task: #{task.task_arn}")
         ensure
           if @log_fetcher
             begin
@@ -271,6 +303,17 @@ module Wrapbox
             sleep current_retry_interval
             current_retry_interval = [current_retry_interval * parameter.retry_interval_multiplier, parameter.max_retry_interval].min
             retry
+          end
+        rescue SignalException
+          if task
+            client.stop_task(
+              cluster: cl,
+              task: task.task_arn,
+              reason: "signal interrupted"
+            )
+            wait_task_stopped(cl, task.task_arn, TERM_TIMEOUT)
+            @logger.debug("Stop Task: #{task.task_arn}")
+            nil
           end
         end
       end
@@ -457,6 +500,7 @@ module Wrapbox
         method_option :launch_retry, type: :numeric
         method_option :execution_retry, type: :numeric
         method_option :max_retry_interval, type: :numeric
+        method_option :ignore_signal, type: :boolean, default: false, desc: "Even if receive a signal (like TERM, INT, QUIT), ECS Tasks continue running"
         def run_cmd(*args)
           repo = Wrapbox::ConfigRepository.new.tap { |r| r.load_yaml(options[:config]) }
           config = repo.get(options[:config_name])
@@ -472,14 +516,17 @@ module Wrapbox
             launch_timeout: options[:launch_timeout],
             launch_retry: options[:launch_retry],
             execution_retry: options[:execution_retry],
-            max_retry_interval: options[:max_retry_interval]
+            max_retry_interval: options[:max_retry_interval],
+            ignore_signal: options[:ignore_signal],
           }.reject { |_, v| v.nil? }
           if options[:cpu] || options[:memory]
             container_definition_overrides = {cpu: options[:cpu], memory: options[:memory]}.reject { |_, v| v.nil? }
           else
             container_definition_overrides = {}
           end
-          runner.run_cmd(args, environments: environments, container_definition_overrides: container_definition_overrides, **run_options)
+          unless runner.run_cmd(args, environments: environments, container_definition_overrides: container_definition_overrides, **run_options)
+            exit 1
+          end
         end
       end
     end
