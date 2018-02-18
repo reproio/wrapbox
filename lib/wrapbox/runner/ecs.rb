@@ -1,4 +1,5 @@
-require "aws-sdk"
+require "aws-sdk-ecs"
+require "aws-sdk-cloudwatch"
 require "multi_json"
 require "thor"
 require "yaml"
