@@ -35,7 +35,7 @@ default:
 
 docker:
   runner: docker
-  rm: true
+  keep_container: true
   container_definitions:
     - image: joker1007/wrapbox
       cpu: 512
@@ -118,7 +118,7 @@ log_configuration:
 | name                  | desc                                                        |
 | --------------------  | ----------------------------------------------------------- |
 | container_definitions | only use `image`, `cpu`, `memory`, and `memory_reservation` |
-| rm                    | If true, add `--rm` to cmd options                          |
+| keep_container        | If true, doesn't delete the container when the command ends |
 | use_sudo              | If true, invoke `sudo docker` command                       |
 
 ## API
