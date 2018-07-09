@@ -43,7 +43,8 @@ module Wrapbox
         :network_configuration,
         :cpu,
         :memory,
-        :task_role_arn
+        :task_role_arn,
+        :execution_role_arn
 
       def initialize(options)
         @name = options[:name]
@@ -90,6 +91,7 @@ module Wrapbox
         end
 
         @task_role_arn = options[:task_role_arn]
+        @execution_role_arn = options[:execution_role_arn]
         $stdout.sync = true
         @logger = Logger.new($stdout)
         if options[:log_fetcher]
@@ -102,6 +104,7 @@ module Wrapbox
         attr_reader \
           :environments,
           :task_role_arn,
+          :execution_role_arn,
           :cluster,
           :timeout,
           :launch_timeout,
@@ -390,6 +393,8 @@ module Wrapbox
             container_definitions: overrided_container_definitions,
             volumes: volumes,
             requires_compatibilities: requires_compatibilities,
+            task_role_arn: task_role_arn,
+            execution_role_arn: execution_role_arn
           }).task_definition
         rescue Aws::ECS::Errors::ClientException
           raise if register_retry_count > 2
