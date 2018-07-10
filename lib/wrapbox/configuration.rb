@@ -25,6 +25,7 @@ module Wrapbox
     :cpu,
     :memory,
     :task_role_arn,
+    :execution_role_arn,
     :keep_container,
     :log_fetcher
   ) do
@@ -52,6 +53,7 @@ module Wrapbox
         config["cpu"]&.to_s,
         config["memory"]&.to_s,
         config["task_role_arn"],
+        config["execution_role_arn"],
         config["keep_container"],
         config["log_fetcher"]&.deep_symbolize_keys
       )
