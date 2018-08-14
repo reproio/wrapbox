@@ -27,7 +27,8 @@ module Wrapbox
     :task_role_arn,
     :execution_role_arn,
     :keep_container,
-    :log_fetcher
+    :log_fetcher,
+    :group
   ) do
     def self.load_config(config)
       new(
@@ -55,7 +56,8 @@ module Wrapbox
         config["task_role_arn"],
         config["execution_role_arn"],
         config["keep_container"],
-        config["log_fetcher"]&.deep_symbolize_keys
+        config["log_fetcher"]&.deep_symbolize_keys,
+        config["group"]
       )
     end
 

@@ -44,7 +44,8 @@ module Wrapbox
         :cpu,
         :memory,
         :task_role_arn,
-        :execution_role_arn
+        :execution_role_arn,
+        :group
 
       def initialize(options)
         @name = options[:name]
@@ -60,6 +61,7 @@ module Wrapbox
         @network_configuration = options[:network_configuration]
         @cpu = options[:cpu]
         @memory = options[:memory]
+        @group = options[:group]
 
         @container_definitions = options[:container_definition] ? [options[:container_definition]] : options[:container_definitions] || []
         @container_definitions.concat(options[:additional_container_definitions]) if options[:additional_container_definitions] # deprecated
@@ -112,9 +114,10 @@ module Wrapbox
           :retry_interval,
           :retry_interval_multiplier,
           :max_retry_interval,
-          :execution_retry
+          :execution_retry,
+          :group
 
-        def initialize(environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: 120, execution_retry: 0)
+        def initialize(environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: 120, execution_retry: 0, group: nil)
           b = binding
           method(:initialize).parameters.each do |param|
             instance_variable_set("@#{param[1]}", b.local_variable_get(param[1]))
@@ -237,13 +240,14 @@ module Wrapbox
 
       def create_task(task_definition_arn, class_name, method_name, args, command, parameter)
         cl = parameter.cluster || self.cluster
+        grp = parameter.group || self.group
         args = Array(args)
 
         launch_try_count = 0
         current_retry_interval = parameter.retry_interval
 
         begin
-          run_task_options = build_run_task_options(task_definition_arn, class_name, method_name, args, command, cl, parameter.environments, parameter.task_role_arn)
+          run_task_options = build_run_task_options(task_definition_arn, class_name, method_name, args, command, cl, parameter.environments, parameter.task_role_arn, grp)
           @logger.debug("Task Options: #{run_task_options}")
           resp = client.run_task(run_task_options)
           task = resp.tasks[0]
@@ -438,7 +442,7 @@ module Wrapbox
         )
       end
 
-      def build_run_task_options(task_definition_arn, class_name, method_name, args, command, cluster, environments, task_role_arn)
+      def build_run_task_options(task_definition_arn, class_name, method_name, args, command, cluster, environments, task_role_arn, group)
         env = environments
         env += [
           {
@@ -480,6 +484,7 @@ module Wrapbox
           launch_type: launch_type,
           network_configuration: network_configuration,
           started_by: "wrapbox-#{Wrapbox::VERSION}",
+          group: group,
         }
       end
 
@@ -507,6 +512,7 @@ module Wrapbox
         method_option :execution_retry, type: :numeric
         method_option :max_retry_interval, type: :numeric
         method_option :ignore_signal, type: :boolean, default: false, desc: "Even if receive a signal (like TERM, INT, QUIT), ECS Tasks continue running"
+        method_option :group
         def run_cmd(*args)
           repo = Wrapbox::ConfigRepository.new.tap { |r| r.load_yaml(options[:config]) }
           config = repo.get(options[:config_name])
@@ -524,6 +530,7 @@ module Wrapbox
             execution_retry: options[:execution_retry],
             max_retry_interval: options[:max_retry_interval],
             ignore_signal: options[:ignore_signal],
+            group: options[:group],
           }.reject { |_, v| v.nil? }
           if options[:cpu] || options[:memory]
             container_definition_overrides = {cpu: options[:cpu], memory: options[:memory]}.reject { |_, v| v.nil? }
