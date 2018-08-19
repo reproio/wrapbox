@@ -107,6 +107,7 @@ module Wrapbox
           :execution_role_arn,
           :cluster,
           :timeout,
+          :launch_type,
           :launch_timeout,
           :launch_retry,
           :retry_interval,
@@ -114,7 +115,7 @@ module Wrapbox
           :max_retry_interval,
           :execution_retry
 
-        def initialize(environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: 120, execution_retry: 0)
+        def initialize(environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_type: "EC2", launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: 120, execution_retry: 0)
           b = binding
           method(:initialize).parameters.each do |param|
             instance_variable_set("@#{param[1]}", b.local_variable_get(param[1]))
@@ -237,13 +238,14 @@ module Wrapbox
 
       def create_task(task_definition_arn, class_name, method_name, args, command, parameter)
         cl = parameter.cluster || self.cluster
+        launch_type = parameter.launch_type || self.launch_type
         args = Array(args)
 
         launch_try_count = 0
         current_retry_interval = parameter.retry_interval
 
         begin
-          run_task_options = build_run_task_options(task_definition_arn, class_name, method_name, args, command, cl, parameter.environments, parameter.task_role_arn)
+          run_task_options = build_run_task_options(task_definition_arn, class_name, method_name, args, command, cl, launch_type, parameter.environments, parameter.task_role_arn)
           @logger.debug("Task Options: #{run_task_options}")
           resp = client.run_task(run_task_options)
           task = resp.tasks[0]
@@ -438,7 +440,7 @@ module Wrapbox
         )
       end
 
-      def build_run_task_options(task_definition_arn, class_name, method_name, args, command, cluster, environments, task_role_arn)
+      def build_run_task_options(task_definition_arn, class_name, method_name, args, command, cluster, launch_type, environments, task_role_arn)
         env = environments
         env += [
           {
@@ -502,6 +504,7 @@ module Wrapbox
         method_option :environments, aliases: "-e"
         method_option :task_role_arn
         method_option :timeout, type: :numeric
+        method_option :launch_type, type: :string, default: "EC2", enum: ["EC2", "FARGATE"]
         method_option :launch_timeout, type: :numeric
         method_option :launch_retry, type: :numeric
         method_option :execution_retry, type: :numeric
@@ -517,6 +520,7 @@ module Wrapbox
             cluster: options[:cluster],
             task_role_arn: options[:task_role_arn],
             timeout: options[:timeout],
+            launch_type: options[:launch_type],
             launch_timeout: options[:launch_timeout],
             launch_retry: options[:launch_retry],
             execution_retry: options[:execution_retry],

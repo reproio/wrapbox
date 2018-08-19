@@ -8,7 +8,7 @@ module Wrapbox
     def self.new(type, **options)
       raise "log_fetcher config needs `type`" unless type
       require "wrapbox/log_fetcher/#{type}"
-      self.const_get(type.classify).new(**options)
+      self.const_get(type.camelize).new(**options)
     end
 
     def run(task:)

@@ -18,7 +18,10 @@ module Wrapbox
         @access_key_id = access_key_id
         @secret_access_key = secret_access_key
         @timestamp_format = timestamp_format
+        @delay = delay
         @options = options.reject { |_, v| v.nil? }
+        @displayed_log_stream_names = {}
+        @displayed_log_stream_number = 0
       end
 
       def run(task:)
@@ -64,9 +67,19 @@ module Wrapbox
         end
       end
 
+      COLOR_ESCAPE_SEQUENCES = [33, 31, 32, 34, 35, 36]
       def display_message(ev, output: $stdout)
+        num = @displayed_log_stream_names.fetch(ev.log_stream_name) do |key|
+          current = @displayed_log_stream_number
+          @displayed_log_stream_names[key] = current
+          @displayed_log_stream_number += 1
+          current
+        end
+
+        sequence_number = COLOR_ESCAPE_SEQUENCES[num % COLOR_ESCAPE_SEQUENCES.length]
+
         time = Time.at(ev.timestamp / 1000.0)
-        output.puts("#{time.strftime(@timestamp_format)} #{ev.log_stream_name} #{ev.message}")
+        output.puts("\e[#{sequence_number}m#{time.strftime(@timestamp_format)} #{ev.log_stream_name}\e[0m #{ev.message}")
       end
     end
   end
