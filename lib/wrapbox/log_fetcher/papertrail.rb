@@ -17,7 +17,7 @@ module Wrapbox
         @options = options.reject { |_, v| v.nil? }
       end
 
-      def run
+      def run(task:)
         @started_at = Time.now
         @loop_thread = Thread.start(&method(:main_loop))
       end

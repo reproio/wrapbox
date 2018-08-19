@@ -11,7 +11,7 @@ module Wrapbox
       self.const_get(type.classify).new(**options)
     end
 
-    def run
+    def run(task:)
       raise NotImplementedError
     end
 

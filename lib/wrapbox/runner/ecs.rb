@@ -186,7 +186,7 @@ module Wrapbox
           task = create_task(task_definition_arn, class_name, method_name, args, command, parameter)
           return unless task # only Task creation aborted by SignalException
 
-          @log_fetcher.run if @log_fetcher
+          @log_fetcher.run(task: task) if @log_fetcher
 
           @logger.debug("Launch Task: #{task.task_arn}")
 
