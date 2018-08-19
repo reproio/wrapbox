@@ -72,12 +72,12 @@ module Wrapbox
       Wrapbox::Runner.const_get(r.to_s.camelcase).new(to_h)
     end
 
-    def run(class_name, method_name, args, **options)
-      build_runner.run(class_name, method_name, args, **options)
+    def run(class_name, method_name, args, runner: nil, **options)
+      build_runner(runner).run(class_name, method_name, args, **options)
     end
 
-    def run_cmd(*cmd, **options)
-      build_runner.run_cmd(*cmd, **options)
+    def run_cmd(*cmd, runner: nil, **options)
+      build_runner(runner).run_cmd(*cmd, **options)
     end
   end
 end

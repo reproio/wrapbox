@@ -10,5 +10,13 @@ module Wrapbox
       require "wrapbox/log_fetcher/#{type}"
       self.const_get(type.classify).new(**options)
     end
+
+    def run
+      raise NotImplementedError
+    end
+
+    def stop
+      raise NotImplementedError
+    end
   end
 end

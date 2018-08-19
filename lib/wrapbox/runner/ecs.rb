@@ -508,10 +508,8 @@ module Wrapbox
         method_option :max_retry_interval, type: :numeric
         method_option :ignore_signal, type: :boolean, default: false, desc: "Even if receive a signal (like TERM, INT, QUIT), ECS Tasks continue running"
         def run_cmd(*args)
-          repo = Wrapbox::ConfigRepository.new.tap { |r| r.load_yaml(options[:config]) }
-          config = repo.get(options[:config_name])
-          config.runner = :ecs
-          runner = config.build_runner
+          Wrapbox.load_config(options[:config])
+          config = Wrapbox.configs[options[:config_name]]
           environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
             {name: k, value: v}
           end
@@ -530,7 +528,7 @@ module Wrapbox
           else
             container_definition_overrides = {}
           end
-          unless runner.run_cmd(args, environments: environments, container_definition_overrides: container_definition_overrides, **run_options)
+          unless config.run_cmd(args, runner: "ecs", environments: environments, container_definition_overrides: container_definition_overrides, **run_options)
             exit 1
           end
         end

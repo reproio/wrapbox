@@ -139,10 +139,8 @@ module Wrapbox
         method_option :environments, aliases: "-e"
         method_option :ignore_signal, type: :boolean, default: false, desc: "Even if receive a signal (like TERM, INT, QUIT), Docker container continue running"
         def run_cmd(*args)
-          repo = Wrapbox::ConfigRepository.new.tap { |r| r.load_yaml(options[:config]) }
-          config = repo.get(options[:config_name])
-          config.runner = :docker
-          runner = config.build_runner
+          Wrapbox.load_config(options[:config])
+          config = Wrapbox.configs[options[:config_name]]
           environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
             {name: k, value: v}
           end
@@ -151,7 +149,7 @@ module Wrapbox
           else
             container_definition_overrides = {}
           end
-          unless runner.run_cmd(args, environments: environments, container_definition_overrides: container_definition_overrides, ignore_signal: options[:ignore_signal])
+          unless config.run_cmd(args, runner: "docker", environments: environments, container_definition_overrides: container_definition_overrides, ignore_signal: options[:ignore_signal])
             exit 1
           end
         end

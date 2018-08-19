@@ -4,6 +4,10 @@ module Wrapbox
   METHOD_ARGS_ENV = "WRAPBOX_METHOD_ARGS".freeze
 
   class << self
+    def load_config(filename)
+      configs.load_yaml(filename)
+    end
+
     def configs
       @configs ||= ConfigRepository.new
     end
@@ -12,12 +16,12 @@ module Wrapbox
       yield configs
     end
 
-    def run(*args, config_name: nil, **options)
+    def run(*args, runner: nil, config_name: nil, **options)
       config = @configs.get(config_name)
       config.run(*args, **options)
     end
 
-    def run_cmd(*args, config_name: nil, **options)
+    def run_cmd(*args, runner: nil, config_name: nil, **options)
       config = @configs.get(config_name)
       config.run_cmd(*args, **options)
     end

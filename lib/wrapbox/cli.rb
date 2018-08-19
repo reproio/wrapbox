@@ -1,4 +1,5 @@
 require "thor/group"
+require "wrapbox"
 require "wrapbox/runner/docker"
 require "wrapbox/runner/ecs"
 
