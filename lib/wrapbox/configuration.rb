@@ -4,6 +4,7 @@ require "active_support/core_ext/string"
 module Wrapbox
   Configuration = Struct.new(
     :name,
+    :task_definition_name,
     :revision,
     :runner,
     :cluster,
@@ -32,6 +33,7 @@ module Wrapbox
     def self.load_config(config)
       new(
         config["name"],
+        config["task_definition_name"],
         config["revision"],
         config["runner"] ? config["runner"].to_sym : :docker,
         config["cluster"],

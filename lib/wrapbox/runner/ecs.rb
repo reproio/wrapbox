@@ -48,6 +48,7 @@ module Wrapbox
 
       def initialize(options)
         @name = options[:name]
+        @task_definition_name = options[:task_definition_name]
         @revision = options[:revision]
         @cluster = options[:cluster]
         @region = options[:region]
@@ -75,7 +76,7 @@ module Wrapbox
         @task_definition_info = options[:task_definition]
 
         if !@container_definitions.empty?
-          @task_definition_name = "wrapbox_#{@name}"
+          @task_definition_name ||= "wrapbox_#{@name}"
           @main_container_name = @container_definitions[0][:name] || @task_definition_name
         elsif @task_definition_info
           @task_definition_name = @task_definition_info[:task_definition_name]
