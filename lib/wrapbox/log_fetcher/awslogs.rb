@@ -22,6 +22,7 @@ module Wrapbox
         @options = options.reject { |_, v| v.nil? }
         @displayed_log_stream_names = {}
         @displayed_log_stream_number = 0
+        @displayed_event_ids = {}
       end
 
       def run(task:)
@@ -36,13 +37,6 @@ module Wrapbox
       end
 
       def main_loop(task)
-        options = {
-          region: @region,
-          access_key_id: @access_key_id,
-          secret_access_key: @secret_access_key,
-        }.compact
-        client = Aws::CloudWatchLogs::Client.new(**options)
-
         task_id = task.task_arn.split("/").last
         log_stream_names = task.containers.map do |container|
           [@log_stream_prefix, container.name, task_id].join("/")
@@ -51,19 +45,30 @@ module Wrapbox
           log_group_name: @log_group,
           log_stream_names: log_stream_names,
           filter_pattern: @filter_pattern,
+          interleaved: true,
         }.compact
-        filter_log_opts[:start_time] = ((Time.now.to_f - 60) * 1000).round
+        @max_timestamp = ((Time.now.to_f - 120) * 1000).round
+
         until @stop do
-          filter_log_opts[:next_token] = nil
-          begin
-            resp = client.filter_log_events(filter_log_opts)
-            resp.events.each do |ev|
+          filter_log_opts[:start_time] = @max_timestamp + 1
+          resp = client.filter_log_events(filter_log_opts)
+          resp.each do |r|
+            r.events.each do |ev|
+              next if @displayed_event_ids.member?(ev.event_id)
               display_message(ev)
+              @displayed_event_ids[ev.event_id] = ev.timestamp
+              @max_timestamp = ev.timestamp if @max_timestamp < ev.timestamp
             end
-            filter_log_opts[:next_token] = resp.next_token
-          end while filter_log_opts[:next_token]
-          filter_log_opts[:start_time] = (Time.now.to_f * 1000).round
-          sleep @delay
+          end
+          Thread.start do
+            @displayed_event_ids.each do |event_id, ts|
+              if ts < (Time.now.to_f - 600) * 1000
+                @displayed_event_ids.delete(event_id)
+              end
+            end
+          end.tap do
+            sleep @delay 
+          end.join
         end
       end
 
@@ -80,6 +85,19 @@ module Wrapbox
 
         time = Time.at(ev.timestamp / 1000.0)
         output.puts("\e[#{sequence_number}m#{time.strftime(@timestamp_format)} #{ev.log_stream_name}\e[0m #{ev.message}")
+      end
+
+      private
+
+      def client
+        return @client if @client
+
+        options = {
+          region: @region,
+          access_key_id: @access_key_id,
+          secret_access_key: @secret_access_key,
+        }.compact
+        @client = Aws::CloudWatchLogs::Client.new(**options)
       end
     end
   end
