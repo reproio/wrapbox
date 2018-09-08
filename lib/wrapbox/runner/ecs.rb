@@ -188,8 +188,6 @@ module Wrapbox
           task = create_task(task_definition_arn, class_name, method_name, args, command, parameter)
           return unless task # only Task creation aborted by SignalException
 
-          @log_fetcher.run(task: task) if @log_fetcher
-
           @logger.debug("Launch Task: #{task.task_arn}")
 
           wait_task_stopped(cl, task.task_arn, parameter.timeout)
@@ -250,6 +248,7 @@ module Wrapbox
           @logger.debug("Task Options: #{run_task_options}")
           resp = client.run_task(run_task_options)
           task = resp.tasks[0]
+          @log_fetcher.run(task: task) if @log_fetcher
 
           resp.failures.each do |failure|
             @logger.debug("Failure: Arn=#{failure.arn}, Reason=#{failure.reason}")

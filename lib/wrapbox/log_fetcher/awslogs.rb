@@ -51,8 +51,8 @@ module Wrapbox
 
         until @stop do
           filter_log_opts[:start_time] = @max_timestamp + 1
-          resp = client.filter_log_events(filter_log_opts)
-          resp.each do |r|
+          resp = client.filter_log_events(filter_log_opts) rescue nil
+          resp&.each do |r|
             r.events.each do |ev|
               next if @displayed_event_ids.member?(ev.event_id)
               display_message(ev)
