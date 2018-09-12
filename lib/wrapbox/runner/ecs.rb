@@ -248,14 +248,15 @@ module Wrapbox
           @logger.debug("Task Options: #{run_task_options}")
           resp = client.run_task(run_task_options)
           task = resp.tasks[0]
-          @log_fetcher.run(task: task) if @log_fetcher
+          raise LackResource unless task # this case is almost lack of container resource.
 
           resp.failures.each do |failure|
             @logger.debug("Failure: Arn=#{failure.arn}, Reason=#{failure.reason}")
           end
-          raise LackResource unless task # this case is almost lack of container resource.
 
           @logger.debug("Create Task: #{task.task_arn}")
+
+          @log_fetcher.run(task: task) if @log_fetcher
 
           # Wait ECS Task Status becomes stable
           sleep WAIT_DELAY
