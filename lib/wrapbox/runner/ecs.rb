@@ -96,7 +96,7 @@ module Wrapbox
         $stdout.sync = true
         @logger = Logger.new($stdout)
         if options[:log_fetcher]
-          type = options[:log_fetcher].delete(:type)
+          type = options[:log_fetcher][:type]
           @log_fetcher = LogFetcher.new(type, options[:log_fetcher])
         end
       end
