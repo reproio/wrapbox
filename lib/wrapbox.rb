@@ -1,9 +1,13 @@
+require "logger"
+
 module Wrapbox
   CLASS_NAME_ENV = "WRAPBOX_CLASS_NAME".freeze
   METHOD_NAME_ENV = "WRAPBOX_METHOD_NAME".freeze
   METHOD_ARGS_ENV = "WRAPBOX_METHOD_ARGS".freeze
 
   class << self
+    attr_accessor :logger
+
     def load_config(filename)
       configs.load_yaml(filename)
     end
@@ -26,6 +30,10 @@ module Wrapbox
       config.run_cmd(*args, **options)
     end
   end
+
+  $stdout.sync = true
+  self.logger = Logger.new($stdout)
+  self.logger.level = :info
 end
 
 require "wrapbox/version"

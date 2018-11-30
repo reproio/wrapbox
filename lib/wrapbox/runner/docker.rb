@@ -17,7 +17,7 @@ module Wrapbox
       def initialize(options)
         @name = options[:name]
         @container_definitions = options[:container_definition] ? [options[:container_definition]] : options[:container_definitions]
-        @logger = Logger.new($stdout)
+        @logger = Wrapbox.logger
 
         if @container_definitions.size >= 2
           raise "Docker runner does not support multi container currently"
@@ -138,7 +138,9 @@ module Wrapbox
         method_option :memory, type: :numeric
         method_option :environments, aliases: "-e"
         method_option :ignore_signal, type: :boolean, default: false, desc: "Even if receive a signal (like TERM, INT, QUIT), Docker container continue running"
+        method_option :verbose, aliases: "-v", type: :boolean, default: false, desc: "Verbose mode"
         def run_cmd(*args)
+          Wrapbox.logger.level = :debug if options[:verbose]
           Wrapbox.load_config(options[:config])
           config = Wrapbox.configs[options[:config_name]]
           environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|

@@ -93,8 +93,7 @@ module Wrapbox
 
         @task_role_arn = options[:task_role_arn]
         @execution_role_arn = options[:execution_role_arn]
-        $stdout.sync = true
-        @logger = Logger.new($stdout)
+        @logger = Wrapbox.logger
         if options[:log_fetcher]
           type = options[:log_fetcher][:type]
           @log_fetcher = LogFetcher.new(type, options[:log_fetcher])
@@ -212,7 +211,7 @@ module Wrapbox
             raise
           else
             execution_try_count += 1
-            @logger.debug("Retry Execution after #{EXECUTION_RETRY_INTERVAL} sec")
+            @logger.warn("Retry Execution after #{EXECUTION_RETRY_INTERVAL} sec (#{execution_try_count}/#{parameter.execution_retry})")
             sleep EXECUTION_RETRY_INTERVAL
             retry
           end
@@ -250,7 +249,7 @@ module Wrapbox
           task = resp.tasks[0]
 
           resp.failures.each do |failure|
-            @logger.debug("Failure: Arn=#{failure.arn}, Reason=#{failure.reason}")
+            @logger.warn("Failure: Arn=#{failure.arn}, Reason=#{failure.reason}")
           end
           raise LackResource unless task # this case is almost lack of container resource.
 
@@ -288,14 +287,14 @@ module Wrapbox
             end
           end
         rescue LackResource
-          @logger.debug("Failed to create task, because of lack resource")
+          @logger.warn("Failed to create task, because of lack resource")
           put_waiting_task_count_metric(cl)
 
           if launch_try_count >= parameter.launch_retry
             raise
           else
             launch_try_count += 1
-            @logger.debug("Retry Create Task after #{current_retry_interval} sec")
+            @logger.warn("Retry Create Task after #{current_retry_interval} sec (#{launch_try_count}/#{parameter.launch_retry})")
             sleep current_retry_interval
             current_retry_interval = [current_retry_interval * parameter.retry_interval_multiplier, parameter.max_retry_interval].min
             retry
@@ -306,7 +305,7 @@ module Wrapbox
             raise LaunchFailure, build_error_message(task_definition_name, task.task_arn, task_status)
           else
             launch_try_count += 1
-            @logger.debug("Retry Create Task after #{current_retry_interval} sec")
+            @logger.warn("Retry Create Task after #{current_retry_interval} sec (#{launch_try_count}/#{parameter.launch_retry})")
             sleep current_retry_interval
             current_retry_interval = [current_retry_interval * parameter.retry_interval_multiplier, parameter.max_retry_interval].min
             retry
@@ -511,7 +510,9 @@ module Wrapbox
         method_option :execution_retry, type: :numeric
         method_option :max_retry_interval, type: :numeric
         method_option :ignore_signal, type: :boolean, default: false, desc: "Even if receive a signal (like TERM, INT, QUIT), ECS Tasks continue running"
+        method_option :verbose, aliases: "-v", type: :boolean, default: false, desc: "Verbose mode"
         def run_cmd(*args)
+          Wrapbox.logger.level = :debug if options[:verbose]
           Wrapbox.load_config(options[:config])
           config = Wrapbox.configs[options[:config_name]]
           environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
