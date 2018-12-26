@@ -136,6 +136,7 @@ module Wrapbox
         method_option :config_name, aliases: "-n", required: true, default: "default"
         method_option :cpu, type: :numeric
         method_option :memory, type: :numeric
+        method_option :working_directory, aliases: "-w", type: :string
         method_option :environments, aliases: "-e"
         method_option :ignore_signal, type: :boolean, default: false, desc: "Even if receive a signal (like TERM, INT, QUIT), Docker container continue running"
         method_option :verbose, aliases: "-v", type: :boolean, default: false, desc: "Verbose mode"
@@ -146,8 +147,8 @@ module Wrapbox
           environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
             {name: k, value: v}
           end
-          if options[:cpu] || options[:memory]
-            container_definition_overrides = {cpu: options[:cpu], memory: options[:memory]}.reject { |_, v| v.nil? }
+          if options[:cpu] || options[:memory] || options[:working_directory]
+            container_definition_overrides = {cpu: options[:cpu], memory: options[:memory], working_directory: options[:working_directory]}.reject { |_, v| v.nil? }
           else
             container_definition_overrides = {}
           end

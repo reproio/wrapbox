@@ -501,6 +501,7 @@ module Wrapbox
         method_option :cluster, aliases: "-c"
         method_option :cpu, type: :numeric
         method_option :memory, type: :numeric
+        method_option :working_directory, aliases: "-w", type: :string
         method_option :environments, aliases: "-e"
         method_option :task_role_arn
         method_option :timeout, type: :numeric
@@ -529,8 +530,8 @@ module Wrapbox
             max_retry_interval: options[:max_retry_interval],
             ignore_signal: options[:ignore_signal],
           }.reject { |_, v| v.nil? }
-          if options[:cpu] || options[:memory]
-            container_definition_overrides = {cpu: options[:cpu], memory: options[:memory]}.reject { |_, v| v.nil? }
+          if options[:cpu] || options[:memory] || options[:working_directory]
+            container_definition_overrides = {cpu: options[:cpu], memory: options[:memory], working_directory: options[:working_directory]}.reject { |_, v| v.nil? }
           else
             container_definition_overrides = {}
           end
