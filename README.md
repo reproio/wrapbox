@@ -98,7 +98,7 @@ Wrapbox.run_cmd(["ls ."], environments: [{name: "RAILS_ENV", value: "development
 | placement_constraints | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
 | placement_strategy    | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
 | launch_type           | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#run_task-instance_method                 |
-| newtork_mode          | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| network_mode          | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
 | network_configuration | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#run_task-instance_method                 |
 | cpu    | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
 | memory    | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
