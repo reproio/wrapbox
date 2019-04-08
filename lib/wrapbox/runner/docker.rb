@@ -4,6 +4,8 @@ require "docker"
 require "thor"
 require "shellwords"
 
+require "wrapbox"
+
 module Wrapbox
   module Runner
     class Docker
