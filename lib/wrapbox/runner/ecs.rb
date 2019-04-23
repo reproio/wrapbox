@@ -245,7 +245,13 @@ module Wrapbox
         begin
           run_task_options = build_run_task_options(task_definition_arn, class_name, method_name, args, command, cl, launch_type, parameter.environments, parameter.task_role_arn)
           @logger.debug("Task Options: #{run_task_options}")
-          resp = client.run_task(run_task_options)
+
+          begin
+            resp = client.run_task(run_task_options)
+          rescue Aws::ECS::Errors::ThrottlingException
+            @logger.warn("Failure: Rate exceeded.")
+            raise LaunchFailure
+          end
           task = resp.tasks[0]
 
           resp.failures.each do |failure|
