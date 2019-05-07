@@ -300,8 +300,9 @@ module Wrapbox
             raise
           else
             launch_try_count += 1
-            @logger.warn("Retry Create Task after #{current_retry_interval} sec (#{launch_try_count}/#{parameter.launch_retry})")
-            sleep current_retry_interval
+            retry_interval = current_retry_interval/2 + rand(current_retry_interval/2)
+            @logger.warn("Retry Create Task after #{retry_interval} sec (#{launch_try_count}/#{parameter.launch_retry})")
+            sleep retry_interval
             current_retry_interval = [current_retry_interval * parameter.retry_interval_multiplier, parameter.max_retry_interval].min
             retry
           end
@@ -311,8 +312,9 @@ module Wrapbox
             raise LaunchFailure, build_error_message(task_definition_name, task.task_arn, task_status)
           else
             launch_try_count += 1
-            @logger.warn("Retry Create Task after #{current_retry_interval} sec (#{launch_try_count}/#{parameter.launch_retry})")
-            sleep current_retry_interval
+            retry_interval = current_retry_interval/2 + rand(current_retry_interval/2)
+            @logger.warn("Retry Create Task after #{retry_interval} sec (#{launch_try_count}/#{parameter.launch_retry})")
+            sleep retry_interval
             current_retry_interval = [current_retry_interval * parameter.retry_interval_multiplier, parameter.max_retry_interval].min
             retry
           end
