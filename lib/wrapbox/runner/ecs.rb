@@ -44,7 +44,10 @@ module Wrapbox
         :cpu,
         :memory,
         :task_role_arn,
-        :execution_role_arn
+        :execution_role_arn,
+        :enable_ecs_managed_tags,
+        :tags,
+        :propagate_tags
 
       def initialize(options)
         @name = options[:name]
@@ -61,6 +64,9 @@ module Wrapbox
         @network_configuration = options[:network_configuration]
         @cpu = options[:cpu]
         @memory = options[:memory]
+        @enable_ecs_managed_tags = options[:enable_ecs_managed_tags]
+        @tags = options[:tags]
+        @propagate_tags = options[:propagate_tags]
 
         @container_definitions = options[:container_definition] ? [options[:container_definition]] : options[:container_definitions] || []
         @container_definitions.concat(options[:additional_container_definitions]) if options[:additional_container_definitions] # deprecated
@@ -404,7 +410,8 @@ module Wrapbox
             volumes: volumes,
             requires_compatibilities: requires_compatibilities,
             task_role_arn: task_role_arn,
-            execution_role_arn: execution_role_arn
+            execution_role_arn: execution_role_arn,
+            tags: tags,
           }).task_definition
         rescue Aws::ECS::Errors::ClientException
           raise if register_retry_count > 2
@@ -490,6 +497,8 @@ module Wrapbox
           launch_type: launch_type,
           network_configuration: network_configuration,
           started_by: "wrapbox-#{Wrapbox::VERSION}",
+          enable_ecs_managed_tags: enable_ecs_managed_tags,
+          propagate_tags: propagate_tags,
         }
       end
 
