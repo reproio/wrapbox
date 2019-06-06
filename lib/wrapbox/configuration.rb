@@ -28,7 +28,10 @@ module Wrapbox
     :task_role_arn,
     :execution_role_arn,
     :keep_container,
-    :log_fetcher
+    :log_fetcher,
+    :tags,
+    :enable_ecs_managed_tags,
+    :propagate_tags,
   ) do
     def self.load_config(config)
       new(
@@ -57,7 +60,10 @@ module Wrapbox
         config["task_role_arn"],
         config["execution_role_arn"],
         config["keep_container"],
-        config["log_fetcher"]&.deep_symbolize_keys
+        config["log_fetcher"]&.deep_symbolize_keys,
+        config["tags"],
+        config["enable_ecs_managed_tags"],
+        config["propagate_tags"],
       )
     end
 

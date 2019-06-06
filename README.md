@@ -88,20 +88,23 @@ Wrapbox.run_cmd(["ls ."], environments: [{name: "RAILS_ENV", value: "development
 
 ### for ECS
 
-| name                  | desc                                                                                                        |
-| --------------------  | ------------------------------------------------                                                            |
-| cluster               | target ECS cluster name                                                                                     |
-| region                | region of ECS cluster                                                                                       |
-| container_definitions | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
-| task_role_arn         | see. http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html                         |
-| volumes               | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
-| placement_constraints | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
-| placement_strategy    | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
-| launch_type           | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#run_task-instance_method                 |
-| network_mode          | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
-| network_configuration | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#run_task-instance_method                 |
-| cpu    | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
-| memory    | see. http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| name                    | desc                                                                                                       |
+| ----------------------- | ------------------------------------------------                                                           |
+| cluster                 | target ECS cluster name                                                                                    |
+| region                  | region of ECS cluster                                                                                      |
+| container_definitions   | see http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| task_role_arn           | see http://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html                         |
+| volumes                 | see http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| placement_constraints   | see http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| placement_strategy      | see http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| launch_type             | see http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#run_task-instance_method                 |
+| network_mode            | see http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| network_configuration   | see http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#run_task-instance_method                 |
+| cpu                     | see http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| memory                  | see http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| enable_ecs_managed_tags | see https://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#run_task-instance_method                |
+| tags                    | tags of task definitions. see also https://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
+| propagate_tags          | specify `"TASK_DEFINITION"` if you want to propagate tags to tasks. see also https://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#run_task-instance_method |
 
 `WRAPBOX_CMD_INDEX` environment variable is available in `run_cmd` and you can distinguish logs from each command like below:
 
