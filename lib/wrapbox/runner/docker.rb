@@ -146,7 +146,7 @@ module Wrapbox
           Wrapbox.logger.level = :debug if options[:verbose]
           Wrapbox.load_config(options[:config])
           config = Wrapbox.configs[options[:config_name]]
-          environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
+          environments = options[:environments].to_s.scan(/\w+?=(?:'.+?'|".+?"|\w+)/).map { |kv| kv.split("=") }.map do |k, v|
             {name: k, value: v}
           end
           if options[:cpu] || options[:memory] || options[:working_directory]
