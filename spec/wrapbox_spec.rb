@@ -16,11 +16,19 @@ describe Wrapbox do
     specify "executable on Docker" do
       Wrapbox.run("TestJob", :perform, ["arg1", ["arg2", "arg3"]], config_name: :docker, environments: [{name: "RAILS_ENV", value: "development"}])
     end
+
+    specify "executable on ECS with launch template", aws: true do
+      Wrapbox.run("TestJob", :perform, ["arg1", ["arg2", "arg3"]], config_name: :ecs_with_launch_template, environments: [{name: "RAILS_ENV", value: "development"}])
+    end
   end
 
   describe ".run_cmd" do
     specify "executable on ECS", aws: true do
       Wrapbox.run_cmd(["ls ."], environments: [{name: "RAILS_ENV", value: "development"}])
+    end
+
+    specify "executable on ECS with launch template", aws: true do
+      Wrapbox.run_cmd(["ls ."], config_name: :ecs_with_launch_template, environments: [{name: "RAILS_ENV", value: "development"}])
     end
 
     specify "executable on ECS and kill task", aws: true do

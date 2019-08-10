@@ -20,6 +20,7 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
+  spec.add_runtime_dependency "aws-sdk-ec2", "~> 1"
   spec.add_runtime_dependency "aws-sdk-ecs", "~> 1"
   spec.add_runtime_dependency "aws-sdk-cloudwatch", "~> 1"
   spec.add_runtime_dependency "activesupport", ">= 4"
