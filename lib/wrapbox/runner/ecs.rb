@@ -6,6 +6,7 @@ require "yaml"
 require "active_support/core_ext/hash"
 require "pp"
 require "shellwords"
+require "thwait"
 
 require "wrapbox"
 require "wrapbox/config_repository"
@@ -172,6 +173,8 @@ module Wrapbox
             )
           end
         end
+        ThreadsWait.all_waits(ths)
+        # Raise an error if some threads have an error
         ths.each(&:join)
 
         true
