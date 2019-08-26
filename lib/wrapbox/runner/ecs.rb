@@ -58,7 +58,7 @@ module Wrapbox
         @cluster = options[:cluster]
         @region = options[:region]
         @volumes = options[:volumes]
-        @placement_constraints = options[:placement_constraints]
+        @placement_constraints = options[:placement_constraints] || []
         @placement_strategy = options[:placement_strategy]
         @launch_type = options[:launch_type]
         @requires_compatibilities = options[:requires_compatibilities]
@@ -519,7 +519,7 @@ module Wrapbox
           task_definition: task_definition_arn,
           overrides: overrides,
           placement_strategy: placement_strategy,
-          placement_constraints: (placement_constraints || []) + additional_placement_constraints,
+          placement_constraints: placement_constraints + additional_placement_constraints,
           launch_type: launch_type,
           network_configuration: network_configuration,
           started_by: "wrapbox-#{Wrapbox::VERSION}",
