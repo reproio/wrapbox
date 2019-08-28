@@ -18,3 +18,18 @@ docker:
     image: joker1007/wrapbox
     cpu: 600
     memory: 1024
+
+ecs_with_launch_template:
+  cluster: <%= ENV["ECS_CLUSTER"] %>
+  runner: ecs
+  region: ap-northeast-1
+  container_definition:
+    image: joker1007/wrapbox
+    cpu: 256
+    memory: 256
+    essential: true
+  launch_instances:
+    launch_template:
+      launch_template_id: <%= ENV["LAUNCH_TEMPLATE_ID"] %>
+      version: $Latest
+    wait_until_instance_terminated: false

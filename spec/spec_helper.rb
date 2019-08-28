@@ -12,7 +12,7 @@ end
 
 RSpec.configure do |c|
   c.order = "random"
-  c.filter_run_excluding aws: true
+  c.filter_run_excluding aws: true unless ENV["RUN_AWS_SPECS"] == "true"
 end
 
 if defined?(Tapp)

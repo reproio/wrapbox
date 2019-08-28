@@ -6,10 +6,12 @@ require "yaml"
 require "active_support/core_ext/hash"
 require "pp"
 require "shellwords"
+require "thwait"
 
 require "wrapbox"
 require "wrapbox/config_repository"
 require "wrapbox/log_fetcher"
+require "wrapbox/runner/ecs/instance_manager"
 require "wrapbox/version"
 
 module Wrapbox
@@ -56,7 +58,7 @@ module Wrapbox
         @cluster = options[:cluster]
         @region = options[:region]
         @volumes = options[:volumes]
-        @placement_constraints = options[:placement_constraints]
+        @placement_constraints = options[:placement_constraints] || []
         @placement_strategy = options[:placement_strategy]
         @launch_type = options[:launch_type]
         @requires_compatibilities = options[:requires_compatibilities]
@@ -67,6 +69,9 @@ module Wrapbox
         @enable_ecs_managed_tags = options[:enable_ecs_managed_tags]
         @tags = options[:tags]
         @propagate_tags = options[:propagate_tags]
+        if options[:launch_instances]
+          @instance_manager = Wrapbox::Runner::Ecs::InstanceManager.new(@cluster, @region, options[:launch_instances])
+        end
 
         @container_definitions = options[:container_definition] ? [options[:container_definition]] : options[:container_definitions] || []
         @container_definitions.concat(options[:additional_container_definitions]) if options[:additional_container_definitions] # deprecated
@@ -133,11 +138,17 @@ module Wrapbox
         task_definition = prepare_task_definition(container_definition_overrides)
         parameter = Parameter.new(**parameters)
 
+        if @instance_manager
+          Thread.new { @instance_manager.start_preparing_instances(1) }
+        end
+
         run_task(
           task_definition.task_definition_arn, class_name, method_name, args,
           ["bundle", "exec", "rake", "wrapbox:run"],
           parameter
         )
+      ensure
+        @instance_manager&.terminate_all_instances
       end
 
       def run_cmd(cmds, container_definition_overrides: {}, ignore_signal: false, **parameters)
@@ -146,6 +157,11 @@ module Wrapbox
         task_definition = prepare_task_definition(container_definition_overrides)
 
         cmds << nil if cmds.empty?
+
+        if @instance_manager
+          Thread.new { @instance_manager.start_preparing_instances(cmds.size) }
+        end
+
         cmds.each_with_index do |cmd, idx|
           ths << Thread.new(cmd, idx) do |c, i|
             Thread.current[:cmd_index] = i
@@ -157,6 +173,8 @@ module Wrapbox
             )
           end
         end
+        ThreadsWait.all_waits(ths)
+        # Raise an error if some threads have an error
         ths.each(&:join)
 
         true
@@ -177,6 +195,8 @@ module Wrapbox
           end
         end
         nil
+      ensure
+        @instance_manager&.terminate_all_instances
       end
 
       private
@@ -189,8 +209,9 @@ module Wrapbox
         cl = parameter.cluster || self.cluster
         execution_try_count = 0
 
+        ec2_instance_id = @instance_manager&.pop_ec2_instance_id
         begin
-          task = create_task(task_definition_arn, class_name, method_name, args, command, parameter)
+          task = create_task(task_definition_arn, class_name, method_name, args, command, parameter, ec2_instance_id)
           return unless task # only Task creation aborted by SignalException
 
           @logger.debug("Launch Task: #{task.task_arn}")
@@ -237,10 +258,11 @@ module Wrapbox
               @logger.warn(e)
             end
           end
+          @instance_manager.terminate_instance(ec2_instance_id) if ec2_instance_id
         end
       end
 
-      def create_task(task_definition_arn, class_name, method_name, args, command, parameter)
+      def create_task(task_definition_arn, class_name, method_name, args, command, parameter, ec2_instance_id)
         cl = parameter.cluster || self.cluster
         launch_type = parameter.launch_type || self.launch_type
         args = Array(args)
@@ -249,7 +271,7 @@ module Wrapbox
         current_retry_interval = parameter.retry_interval
 
         begin
-          run_task_options = build_run_task_options(task_definition_arn, class_name, method_name, args, command, cl, launch_type, parameter.environments, parameter.task_role_arn)
+          run_task_options = build_run_task_options(task_definition_arn, class_name, method_name, args, command, cl, launch_type, parameter.environments, parameter.task_role_arn, ec2_instance_id)
           @logger.debug("Task Options: #{run_task_options}")
 
           begin
@@ -455,7 +477,7 @@ module Wrapbox
         )
       end
 
-      def build_run_task_options(task_definition_arn, class_name, method_name, args, command, cluster, launch_type, environments, task_role_arn)
+      def build_run_task_options(task_definition_arn, class_name, method_name, args, command, cluster, launch_type, environments, task_role_arn, ec2_instance_id)
         env = environments
         env += [
           {
@@ -488,12 +510,16 @@ module Wrapbox
         role_arn = task_role_arn || self.task_role_arn
         overrides[:task_role_arn] = role_arn if role_arn
 
+        additional_placement_constraints = []
+        if ec2_instance_id
+          additional_placement_constraints << { type: "memberOf", expression: "ec2InstanceId == #{ec2_instance_id}" }
+        end
         {
           cluster: cluster || self.cluster,
           task_definition: task_definition_arn,
           overrides: overrides,
           placement_strategy: placement_strategy,
-          placement_constraints: placement_constraints,
+          placement_constraints: placement_constraints + additional_placement_constraints,
           launch_type: launch_type,
           network_configuration: network_configuration,
           started_by: "wrapbox-#{Wrapbox::VERSION}",

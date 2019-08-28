@@ -32,6 +32,7 @@ module Wrapbox
     :tags,
     :enable_ecs_managed_tags,
     :propagate_tags,
+    :launch_instances,
   ) do
     def self.load_config(config)
       new(
@@ -64,6 +65,7 @@ module Wrapbox
         config["tags"],
         config["enable_ecs_managed_tags"],
         config["propagate_tags"],
+        config["launch_instances"]&.deep_symbolize_keys,
       )
     end
 
