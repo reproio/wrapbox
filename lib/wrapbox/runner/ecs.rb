@@ -216,11 +216,11 @@ module Wrapbox
           task = create_task(task_definition_arn, class_name, method_name, args, command, parameter, ec2_instance_id)
           return unless task # only Task creation aborted by SignalException
 
-          @logger.debug("Launch Task: #{task.task_arn}")
+          @logger.info("Launch Task: #{task.task_arn}")
 
           wait_task_stopped(cl, task.task_arn, parameter.timeout)
 
-          @logger.debug("Stop Task: #{task.task_arn}")
+          @logger.info("Stop Task: #{task.task_arn}")
 
           # Avoid container exit code fetch miss
           sleep WAIT_DELAY
