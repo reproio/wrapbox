@@ -216,11 +216,11 @@ module Wrapbox
           task = create_task(task_definition_arn, class_name, method_name, args, command, parameter, ec2_instance_id)
           return unless task # only Task creation aborted by SignalException
 
-          @logger.info("Launch Task: #{task.task_arn}")
+          @logger.info("#{log_prefix}Launch Task: #{task.task_arn}")
 
           wait_task_stopped(cl, task.task_arn, parameter.timeout)
 
-          @logger.info("Stop Task: #{task.task_arn}")
+          @logger.info("#{log_prefix}Stop Task: #{task.task_arn}")
 
           # Avoid container exit code fetch miss
           sleep WAIT_DELAY
@@ -240,7 +240,7 @@ module Wrapbox
             raise
           else
             execution_try_count += 1
-            @logger.warn("Retry Execution after #{EXECUTION_RETRY_INTERVAL} sec (#{execution_try_count}/#{parameter.execution_retry})")
+            @logger.warn("#{log_prefix}Retry Execution after #{EXECUTION_RETRY_INTERVAL} sec (#{execution_try_count}/#{parameter.execution_retry})")
             sleep EXECUTION_RETRY_INTERVAL
             retry
           end
@@ -251,7 +251,7 @@ module Wrapbox
             reason: "signal interrupted"
           )
           wait_task_stopped(cl, task.task_arn, TERM_TIMEOUT)
-          @logger.debug("Stop Task: #{task.task_arn}")
+          @logger.debug("#{log_prefix}Stop Task: #{task.task_arn}")
         ensure
           if @log_fetcher
             begin
@@ -274,22 +274,22 @@ module Wrapbox
 
         begin
           run_task_options = build_run_task_options(task_definition_arn, class_name, method_name, args, command, cl, launch_type, parameter.environments, parameter.task_role_arn, ec2_instance_id)
-          @logger.debug("Task Options: #{run_task_options}")
+          @logger.debug("#{log_prefix}Task Options: #{run_task_options}")
 
           begin
             resp = client.run_task(run_task_options)
           rescue Aws::ECS::Errors::ThrottlingException
-            @logger.warn("Failure: Rate exceeded.")
+            @logger.warn("#{log_prefix}Failure: Rate exceeded.")
             raise LaunchFailure
           end
           task = resp.tasks[0]
 
           resp.failures.each do |failure|
-            @logger.warn("Failure: Arn=#{failure.arn}, Reason=#{failure.reason}")
+            @logger.warn("#{log_prefix}Failure: Arn=#{failure.arn}, Reason=#{failure.reason}")
           end
           raise LackResource unless task # this case is almost lack of container resource.
 
-          @logger.debug("Create Task: #{task.task_arn}")
+          @logger.debug("#{log_prefix}Create Task: #{task.task_arn}")
 
           @log_fetcher.run(task: task) if @log_fetcher
 
@@ -323,7 +323,7 @@ module Wrapbox
             end
           end
         rescue LackResource
-          @logger.warn("Failed to create task, because of lack resource")
+          @logger.warn("#{log_prefix}Failed to create task, because of lack resource")
           put_waiting_task_count_metric(cl)
 
           if launch_try_count >= parameter.launch_retry
@@ -331,7 +331,7 @@ module Wrapbox
           else
             launch_try_count += 1
             retry_interval = current_retry_interval/2 + rand(current_retry_interval/2)
-            @logger.warn("Retry Create Task after #{retry_interval} sec (#{launch_try_count}/#{parameter.launch_retry})")
+            @logger.warn("#{log_prefix}Retry Create Task after #{retry_interval} sec (#{launch_try_count}/#{parameter.launch_retry})")
             sleep retry_interval
             current_retry_interval = [current_retry_interval * parameter.retry_interval_multiplier, parameter.max_retry_interval].min
             retry
@@ -343,7 +343,7 @@ module Wrapbox
           else
             launch_try_count += 1
             retry_interval = current_retry_interval/2 + rand(current_retry_interval/2)
-            @logger.warn("Retry Create Task after #{retry_interval} sec (#{launch_try_count}/#{parameter.launch_retry})")
+            @logger.warn("#{log_prefix}Retry Create Task after #{retry_interval} sec (#{launch_try_count}/#{parameter.launch_retry})")
             sleep retry_interval
             current_retry_interval = [current_retry_interval * parameter.retry_interval_multiplier, parameter.max_retry_interval].min
             retry
@@ -356,7 +356,7 @@ module Wrapbox
               reason: "signal interrupted"
             )
             wait_task_stopped(cl, task.task_arn, TERM_TIMEOUT)
-            @logger.debug("Stop Task: #{task.task_arn}")
+            @logger.debug("#{log_prefix}Stop Task: #{task.task_arn}")
             nil
           end
         end
@@ -411,7 +411,7 @@ module Wrapbox
           end
         end
 
-        @logger.debug("Container Definitions: #{overrided_container_definitions}")
+        @logger.debug("#{log_prefix}Container Definitions: #{overrided_container_definitions}")
         register_retry_count = 0
         begin
           client.register_task_definition({
@@ -432,6 +432,14 @@ module Wrapbox
           sleep 2
           retry
         end
+      end
+
+      def cmd_index
+        Thread.current[:cmd_index]
+      end
+
+      def log_prefix
+        cmd_index ? "##{cmd_index} " : ""
       end
 
       def client
@@ -521,7 +529,7 @@ module Wrapbox
 
       def build_error_message(task_definition_name, task_arn, task_status)
         error_message = "Task #{task_definition_name} is failed. task=#{task_arn}, "
-        error_message << "cmd_index=#{Thread.current[:cmd_index]}, " if Thread.current[:cmd_index]
+        error_message << "cmd_index=#{cmd_index}, " if cmd_index
         error_message << "exit_code=#{task_status[:exit_code]}, task_stopped_reason=#{task_status[:stopped_reason]}, container_stopped_reason=#{task_status[:container_stopped_reason]}"
         error_message
       end
