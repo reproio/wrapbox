@@ -12,6 +12,7 @@ require "wrapbox"
 require "wrapbox/config_repository"
 require "wrapbox/log_fetcher"
 require "wrapbox/runner/ecs/instance_manager"
+require "wrapbox/runner/ecs/task_waiter"
 require "wrapbox/version"
 
 module Wrapbox
@@ -72,6 +73,7 @@ module Wrapbox
         if options[:launch_instances]
           @instance_manager = Wrapbox::Runner::Ecs::InstanceManager.new(@cluster, @region, options[:launch_instances])
         end
+        @task_waiter = Wrapbox::Runner::Ecs::TaskWaiter.new(cluster: @cluster, region: @region, delay: WAIT_DELAY)
 
         @container_definitions = options[:container_definition] ? [options[:container_definition]] : options[:container_definitions] || []
         @container_definitions.concat(options[:additional_container_definitions]) if options[:additional_container_definitions] # deprecated
@@ -297,14 +299,14 @@ module Wrapbox
           begin
             wait_task_running(cl, task.task_arn, parameter.launch_timeout)
             task
-          rescue Aws::Waiters::Errors::TooManyAttemptsError
+          rescue Wrapbox::Runner::Ecs::TaskWaiter::WaitTimeout
             client.stop_task(
               cluster: cl,
               task: task.task_arn,
               reason: "launch timeout"
             )
             raise
-          rescue Aws::Waiters::Errors::WaiterFailed
+          rescue Wrapbox::Runner::Ecs::TaskWaiter::WaitFailure
             task_status = fetch_task_status(cl, task.task_arn)
 
             case task_status[:last_status]
@@ -360,24 +362,13 @@ module Wrapbox
         end
       end
 
-      def wait_until_with_timeout(cluster, task_arn, timeout, waiter_name)
-        client.wait_until(waiter_name, cluster: cluster, tasks: [task_arn]) do |w|
-          if timeout
-            w.delay = WAIT_DELAY
-            w.max_attempts = timeout / w.delay
-          else
-            w.max_attempts = nil
-          end
-        end
-      end
-
       def wait_task_running(cluster, task_arn, launch_timeout)
-        wait_until_with_timeout(cluster, task_arn, launch_timeout, :tasks_running)
+        @task_waiter.wait_task_running(task_arn, timeout: launch_timeout)
       end
 
       def wait_task_stopped(cluster, task_arn, execution_timeout)
-        wait_until_with_timeout(cluster, task_arn, execution_timeout, :tasks_stopped)
-      rescue Aws::Waiters::Errors::TooManyAttemptsError
+        @task_waiter.wait_task_stopped(task_arn, timeout: execution_timeout)
+      rescue Wrapbox::Runner::Ecs::TaskWaiter::WaitTimeout
         client.stop_task({
           cluster: cluster,
           task: task_arn,
