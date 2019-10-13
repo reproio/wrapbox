@@ -5,11 +5,12 @@ module Wrapbox
   module Runner
     class Ecs
       class InstanceManager
-        def initialize(cluster, region, launch_template:, instance_type: nil, wait_until_instance_terminated: true)
+        def initialize(cluster, region, launch_template:, instance_type: nil, tag_specifications: nil, wait_until_instance_terminated: true)
           @cluster = cluster
           @region = region
           @launch_template = launch_template
           @instance_type = instance_type
+          @tag_specifications = tag_specifications
           @wait_until_instance_terminated = wait_until_instance_terminated
           @queue = Queue.new
           @instance_ids = []
@@ -23,6 +24,7 @@ module Wrapbox
           preparing_instance_ids = ec2_client.run_instances(
             launch_template: @launch_template,
             instance_type: @instance_type,
+            tag_specifications: @tag_specifications,
             min_count: count,
             max_count: count
           ).instances.map(&:instance_id)
