@@ -27,6 +27,17 @@ describe Wrapbox do
       Wrapbox.run_cmd(["ls ."], environments: [{name: "RAILS_ENV", value: "development"}])
     end
 
+    specify "executable on ECS overriding cluster", aws: true do
+      default_clusters = [nil, "", "default"]
+      if ENV["OVERRIDDEN_ECS_CLUSTER"].nil?
+        raise "Specify OVERRIDDEN_ECS_CLUSTER"
+      end
+      if ENV["ECS_CLUSTER"] == ENV["OVERRIDDEN_ECS_CLUSTER"] || (default_clusters.include?(ENV["ECS_CLUSTER"]) && default_clusters.include?(ENV["OVERRIDDEN_ECS_CLUSTER"]))
+        raise "Specify different values for ECS_CLUSTER and OVERRIDDEN_ECS_CLUSTER"
+      end
+      Wrapbox.run_cmd(["ls ."], environments: [{name: "RAILS_ENV", value: "development"}], cluster: ENV["OVERRIDDEN_ECS_CLUSTER"])
+    end
+
     specify "executable on ECS with launch template", aws: true do
       Wrapbox.run_cmd(["ls ."], config_name: :ecs_with_launch_template, environments: [{name: "RAILS_ENV", value: "development"}])
     end

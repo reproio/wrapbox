@@ -75,19 +75,23 @@ module Wrapbox
       super
     end
 
-    def build_runner(overrided_runner = nil)
+    def runner_class(overrided_runner = nil)
       r = overrided_runner || runner
       raise "#{r} is unsupported runner" unless AVAILABLE_RUNNERS.include?(r.to_sym)
       require "wrapbox/runner/#{r}"
-      Wrapbox::Runner.const_get(r.to_s.camelcase).new(to_h)
+      Wrapbox::Runner.const_get(r.to_s.camelcase)
     end
 
     def run(class_name, method_name, args, runner: nil, **options)
-      build_runner(runner).run(class_name, method_name, args, **options)
+      klass = runner_class(runner)
+      overridable_options, parameters = klass.split_overridable_options_and_parameters(options)
+      klass.new(to_h.merge(overridable_options)).run(class_name, method_name, args, **parameters)
     end
 
     def run_cmd(*cmd, runner: nil, **options)
-      build_runner(runner).run_cmd(*cmd, **options)
+      klass = runner_class(runner)
+      overridable_options, parameters = klass.split_overridable_options_and_parameters(options)
+      klass.new(to_h.merge(overridable_options)).run_cmd(*cmd, **parameters)
     end
   end
 end

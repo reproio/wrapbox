@@ -32,13 +32,11 @@ module Wrapbox
       attr_reader \
         :name,
         :revision,
-        :cluster,
         :region,
         :container_definitions,
         :volumes,
         :placement_constraints,
         :placement_strategy,
-        :launch_type,
         :requires_compatibilities,
         :task_definition_name,
         :main_container_name,
@@ -46,11 +44,20 @@ module Wrapbox
         :network_configuration,
         :cpu,
         :memory,
-        :task_role_arn,
-        :execution_role_arn,
         :enable_ecs_managed_tags,
         :tags,
         :propagate_tags
+
+      def self.split_overridable_options_and_parameters(options)
+        opts = options.dup
+        overridable_options = {}
+        %i[cluster launch_type task_role_arn execution_role_arn].each do |key|
+          value = opts.delete(key)
+          overridable_options[key] = value if value
+        end
+
+        [overridable_options, opts]
+      end
 
       def initialize(options)
         @name = options[:name]
@@ -61,7 +68,7 @@ module Wrapbox
         @volumes = options[:volumes]
         @placement_constraints = options[:placement_constraints] || []
         @placement_strategy = options[:placement_strategy]
-        @launch_type = options[:launch_type]
+        @launch_type = options[:launch_type] || "EC2"
         @requires_compatibilities = options[:requires_compatibilities]
         @network_mode = options[:network_mode]
         @network_configuration = options[:network_configuration]
@@ -116,11 +123,7 @@ module Wrapbox
       class Parameter
         attr_reader \
           :environments,
-          :task_role_arn,
-          :execution_role_arn,
-          :cluster,
           :timeout,
-          :launch_type,
           :launch_timeout,
           :launch_retry,
           :retry_interval,
@@ -128,7 +131,7 @@ module Wrapbox
           :max_retry_interval,
           :execution_retry
 
-        def initialize(environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_type: "EC2", launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: 120, execution_retry: 0)
+        def initialize(environments: [], timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: 120, execution_retry: 0)
           b = binding
           method(:initialize).parameters.each do |param|
             instance_variable_set("@#{param[1]}", b.local_variable_get(param[1]))
@@ -140,15 +143,27 @@ module Wrapbox
         task_definition = prepare_task_definition(container_definition_overrides)
         parameter = Parameter.new(**parameters)
 
+        envs = parameters[:environments] || []
+        envs += [
+          {
+            name: CLASS_NAME_ENV,
+            value: class_name.to_s,
+          },
+          {
+            name: METHOD_NAME_ENV,
+            value: method_name.to_s,
+          },
+          {
+            name: METHOD_ARGS_ENV,
+            value: MultiJson.dump(args),
+          },
+        ]
+
         if @instance_manager
           Thread.new { @instance_manager.start_preparing_instances(1) }
         end
 
-        run_task(
-          task_definition.task_definition_arn, class_name, method_name, args,
-          ["bundle", "exec", "rake", "wrapbox:run"],
-          parameter
-        )
+        run_task(task_definition.task_definition_arn, ["bundle", "exec", "rake", "wrapbox:run"], envs, parameter)
       ensure
         @instance_manager&.terminate_all_instances
       end
@@ -157,6 +172,7 @@ module Wrapbox
         ths = []
 
         task_definition = prepare_task_definition(container_definition_overrides)
+        parameter = Parameter.new(**parameters)
 
         cmds << nil if cmds.empty?
 
@@ -168,11 +184,7 @@ module Wrapbox
           ths << Thread.new(cmd, idx) do |c, i|
             Thread.current[:cmd_index] = i
             envs = (parameters[:environments] || []) + [{name: "WRAPBOX_CMD_INDEX", value: i.to_s}]
-            run_task(
-              task_definition.task_definition_arn, nil, nil, nil,
-              c&.shellsplit,
-              Parameter.new(**parameters.merge(environments: envs))
-            )
+            run_task(task_definition.task_definition_arn, c&.shellsplit, envs, parameter)
           end
         end
         ThreadsWait.all_waits(ths)
@@ -207,25 +219,24 @@ module Wrapbox
         !!@task_definition_info
       end
 
-      def run_task(task_definition_arn, class_name, method_name, args, command, parameter)
-        cl = parameter.cluster || self.cluster
+      def run_task(task_definition_arn, command, environments, parameter)
         execution_try_count = 0
 
         ec2_instance_id = @instance_manager&.pop_ec2_instance_id
         begin
-          task = create_task(task_definition_arn, class_name, method_name, args, command, parameter, ec2_instance_id)
+          task = create_task(task_definition_arn, command, environments, parameter, ec2_instance_id)
           return unless task # only Task creation aborted by SignalException
 
           @logger.info("#{log_prefix}Launch Task: #{task.task_arn}")
 
-          wait_task_stopped(cl, task.task_arn, parameter.timeout)
+          wait_task_stopped(task.task_arn, parameter.timeout)
 
           @logger.info("#{log_prefix}Stop Task: #{task.task_arn}")
 
           # Avoid container exit code fetch miss
           sleep WAIT_DELAY
 
-          task_status = fetch_task_status(cl, task.task_arn)
+          task_status = fetch_task_status(task.task_arn)
 
           # If exit_code is nil, Container is force killed or ECS failed to launch Container by Irregular situation
           error_message = build_error_message(task_definition_name, task.task_arn, task_status)
@@ -246,11 +257,11 @@ module Wrapbox
           end
         rescue SignalException
           client.stop_task(
-            cluster: cl,
+            cluster: @cluster,
             task: task.task_arn,
             reason: "signal interrupted"
           )
-          wait_task_stopped(cl, task.task_arn, TERM_TIMEOUT)
+          wait_task_stopped(task.task_arn, TERM_TIMEOUT)
           @logger.debug("#{log_prefix}Stop Task: #{task.task_arn}")
         ensure
           if @log_fetcher
@@ -264,16 +275,14 @@ module Wrapbox
         end
       end
 
-      def create_task(task_definition_arn, class_name, method_name, args, command, parameter, ec2_instance_id)
-        cl = parameter.cluster || self.cluster
-        launch_type = parameter.launch_type || self.launch_type
+      def create_task(task_definition_arn, command, environments, parameter, ec2_instance_id)
         args = Array(args)
 
         launch_try_count = 0
         current_retry_interval = parameter.retry_interval
 
         begin
-          run_task_options = build_run_task_options(task_definition_arn, class_name, method_name, args, command, cl, launch_type, parameter.environments, parameter.task_role_arn, ec2_instance_id)
+          run_task_options = build_run_task_options(task_definition_arn, command, environments, ec2_instance_id)
           @logger.debug("#{log_prefix}Task Options: #{run_task_options}")
 
           begin
@@ -297,17 +306,17 @@ module Wrapbox
           sleep WAIT_DELAY
 
           begin
-            wait_task_running(cl, task.task_arn, parameter.launch_timeout)
+            wait_task_running(task.task_arn, parameter.launch_timeout)
             task
           rescue Wrapbox::Runner::Ecs::TaskWaiter::WaitTimeout
             client.stop_task(
-              cluster: cl,
+              cluster: @cluster,
               task: task.task_arn,
               reason: "launch timeout"
             )
             raise
           rescue Wrapbox::Runner::Ecs::TaskWaiter::WaitFailure
-            task_status = fetch_task_status(cl, task.task_arn)
+            task_status = fetch_task_status(task.task_arn)
 
             case task_status[:last_status]
             when "RUNNING"
@@ -324,7 +333,7 @@ module Wrapbox
           end
         rescue LackResource
           @logger.warn("#{log_prefix}Failed to create task, because of lack resource")
-          put_waiting_task_count_metric(cl)
+          put_waiting_task_count_metric
 
           if launch_try_count >= parameter.launch_retry
             raise
@@ -338,7 +347,7 @@ module Wrapbox
           end
         rescue LaunchFailure
           if launch_try_count >= parameter.launch_retry
-            task_status = fetch_task_status(cl, task.task_arn)
+            task_status = fetch_task_status(task.task_arn)
             raise LaunchFailure, build_error_message(task_definition_name, task.task_arn, task_status)
           else
             launch_try_count += 1
@@ -351,34 +360,34 @@ module Wrapbox
         rescue SignalException
           if task
             client.stop_task(
-              cluster: cl,
+              cluster: @cluster,
               task: task.task_arn,
               reason: "signal interrupted"
             )
-            wait_task_stopped(cl, task.task_arn, TERM_TIMEOUT)
+            wait_task_stopped(task.task_arn, TERM_TIMEOUT)
             @logger.debug("#{log_prefix}Stop Task: #{task.task_arn}")
             nil
           end
         end
       end
 
-      def wait_task_running(cluster, task_arn, launch_timeout)
+      def wait_task_running(task_arn, launch_timeout)
         @task_waiter.wait_task_running(task_arn, timeout: launch_timeout)
       end
 
-      def wait_task_stopped(cluster, task_arn, execution_timeout)
+      def wait_task_stopped(task_arn, execution_timeout)
         @task_waiter.wait_task_stopped(task_arn, timeout: execution_timeout)
       rescue Wrapbox::Runner::Ecs::TaskWaiter::WaitTimeout
         client.stop_task({
-          cluster: cluster,
+          cluster: @cluster,
           task: task_arn,
           reason: "process timeout",
         })
         raise ExecutionTimeout, "Task #{task_definition_name} is timeout. task=#{task_arn}, timeout=#{execution_timeout}"
       end
 
-      def fetch_task_status(cluster, task_arn)
-        task = client.describe_tasks(cluster: cluster, tasks: [task_arn]).tasks[0]
+      def fetch_task_status(task_arn)
+        task = client.describe_tasks(cluster: @cluster, tasks: [task_arn]).tasks[0]
         container = task.containers.find { |c| c.name == main_container_name }
         {
           last_status: task.last_status,
@@ -422,8 +431,8 @@ module Wrapbox
             container_definitions: overrided_container_definitions,
             volumes: volumes,
             requires_compatibilities: requires_compatibilities,
-            task_role_arn: task_role_arn,
-            execution_role_arn: execution_role_arn,
+            task_role_arn: @task_role_arn,
+            execution_role_arn: @execution_role_arn,
             tags: tags,
           }).task_definition
         rescue Aws::ECS::Errors::ClientException
@@ -458,7 +467,7 @@ module Wrapbox
         @cloud_watch_client = Aws::CloudWatch::Client.new(options)
       end
 
-      def put_waiting_task_count_metric(cluster)
+      def put_waiting_task_count_metric
         cloud_watch_client.put_metric_data(
           namespace: "wrapbox",
           metric_data: [
@@ -466,7 +475,7 @@ module Wrapbox
             dimensions: [
               {
                 name: "ClusterName",
-                value: cluster || self.cluster,
+                value: @cluster,
               },
             ],
             timestamp: Time.now,
@@ -476,50 +485,34 @@ module Wrapbox
         )
       end
 
-      def build_run_task_options(task_definition_arn, class_name, method_name, args, command, cluster, launch_type, environments, task_role_arn, ec2_instance_id)
-        env = environments
-        env += [
-          {
-            name: CLASS_NAME_ENV,
-            value: class_name.to_s,
-          },
-          {
-            name: METHOD_NAME_ENV,
-            value: method_name.to_s,
-          },
-          {
-            name: METHOD_ARGS_ENV,
-            value: MultiJson.dump(args),
-          },
-        ] if class_name && method_name && args
+      def build_run_task_options(task_definition_arn, command, environments, ec2_instance_id)
         overrides = {
           container_overrides: [
             {
               name: main_container_name,
-              environment: env,
+              environment: environments,
             }.tap { |o| o[:command] = command if command },
             *container_definitions.drop(1).map do |c|
               {
                 name: c[:name],
-                environment: env,
+                environment: environments,
               }
             end
           ],
         }
-        role_arn = task_role_arn || self.task_role_arn
-        overrides[:task_role_arn] = role_arn if role_arn
+        overrides[:task_role_arn] = @task_role_arn if @task_role_arn
 
         additional_placement_constraints = []
         if ec2_instance_id
           additional_placement_constraints << { type: "memberOf", expression: "ec2InstanceId == #{ec2_instance_id}" }
         end
         {
-          cluster: cluster || self.cluster,
+          cluster: @cluster,
           task_definition: task_definition_arn,
           overrides: overrides,
           placement_strategy: placement_strategy,
           placement_constraints: placement_constraints + additional_placement_constraints,
-          launch_type: launch_type,
+          launch_type: @launch_type,
           network_configuration: network_configuration,
           started_by: "wrapbox-#{Wrapbox::VERSION}",
           enable_ecs_managed_tags: enable_ecs_managed_tags,

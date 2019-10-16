@@ -16,6 +16,10 @@ module Wrapbox
         :container_definition,
         :keep_container
 
+      def self.split_overridable_options_and_parameters(options)
+        [{}, options]
+      end
+
       def initialize(options)
         @name = options[:name]
         @container_definitions = options[:container_definition] ? [options[:container_definition]] : options[:container_definitions]
