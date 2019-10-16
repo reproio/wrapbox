@@ -32,4 +32,9 @@ ecs_with_launch_template:
     launch_template:
       launch_template_id: <%= ENV["LAUNCH_TEMPLATE_ID"] %>
       version: $Latest
+    tag_specifications:
+      - resource_type: instance
+        tags:
+          - key: Purpose
+            value: wrapbox_spec
     wait_until_instance_terminated: false

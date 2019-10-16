@@ -105,7 +105,7 @@ Wrapbox.run_cmd(["ls ."], environments: [{name: "RAILS_ENV", value: "development
 | enable_ecs_managed_tags | see https://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#run_task-instance_method                |
 | tags                    | tags of task definitions. see also https://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
 | propagate_tags          | specify `"TASK_DEFINITION"` if you want to propagate tags to tasks. see also https://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#run_task-instance_method |
-| launch_instances        | specify `launch_template` and `instance_type` for [Aws::EC2::Client#run_instances](https://docs.aws.amazon.com/sdkforruby/api/Aws/EC2/Client.html#run_instances-instance_method). You can also specify `wait_until_instance_terminated` (default: true) |
+| launch_instances        | specify `launch_template` (required), `instance_type`, and `tag_specifications` for [Aws::EC2::Client#run_instances](https://docs.aws.amazon.com/sdkforruby/api/Aws/EC2/Client.html#run_instances-instance_method). You can also specify `wait_until_instance_terminated` (default: true) |
 
 `WRAPBOX_CMD_INDEX` environment variable is available in `run_cmd` and you can distinguish logs from each command like below:
 
