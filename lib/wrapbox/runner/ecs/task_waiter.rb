@@ -61,6 +61,14 @@ module Wrapbox
                 @cv.wait(@mutex)
 
                 result = @task_arn_to_described_result[task_arn]
+                if result[:failure]
+                  case result[:failure].reason
+                  when "MISSING"
+                    raise TaskMissing
+                  else
+                    raise UnknownFailure
+                  end
+                end
                 raise UnknownFailure if result[:failure]
 
                 break if result[:task].last_status == "STOPPED"
@@ -88,7 +96,11 @@ module Wrapbox
                       @task_arn_to_described_result[task.task_arn] = { task: task }
                     end
                     resp.failures.each do |failure|
-                      @task_arn_to_described_result[failure.arn] = { failure: failure }
+                      # failure.arn is like "arn:aws:ecs:<region>:<account-id>:task/<task-id>"
+                      # even if task_arn is like "arn:aws:ecs:<region>:<account-id>:task/<cluster>/<task-id>"
+                      prefix, suffix = failure.arn.split("/")
+                      task_arn = task_arns.find { |a| a.start_with?(prefix) && a.end_with?(suffix) }
+                      @task_arn_to_described_result[task_arn || failure.arn] = { failure: failure }
                     end
                   end
 
