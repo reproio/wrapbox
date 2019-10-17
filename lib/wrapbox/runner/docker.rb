@@ -17,7 +17,14 @@ module Wrapbox
         :keep_container
 
       def self.split_overridable_options_and_parameters(options)
-        [{}, options]
+        opts = options.dup
+        overridable_options = {}
+        %i[keep_container].each do |key|
+          value = opts.delete(key)
+          overridable_options[key] = value if value
+        end
+
+        [overridable_options, opts]
       end
 
       def initialize(options)
