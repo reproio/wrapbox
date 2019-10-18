@@ -78,6 +78,13 @@ Wrapbox.run("TestJob", :perform, ["arg1", ["arg2", "arg3"]], config_name: :docke
 Wrapbox.run_cmd(["ls ."], environments: [{name: "RAILS_ENV", value: "development"}])
 ```
 
+If ECS runner cannot create task, it puts custom metric data to CloudWatch.
+Custom metric data is `wrapbox/WaitingTaskCount` that has `ClusterName` dimension.
+And, it retry launching until retry count reach `launch_retry`.
+
+After task exited, Wrapbox checks main container exit code.
+If exit code is not 0, Wrapbox raise error.
+
 ## Config
 
 ### Common
@@ -123,28 +130,55 @@ log_configuration:
 | --------------------  | ----------------------------------------------------------- |
 | container_definitions | only use `image`, `cpu`, `memory`, and `memory_reservation` |
 | keep_container        | If true, doesn't delete the container when the command ends |
-| use_sudo              | If true, invoke `sudo docker` command                       |
 
 ## API
 
-#### `run(class_name, method_name, args, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: 120, execution_retry: 0)`
+### `Wrapbox.run`
 
-#### `run_cmd(*cmd, container_definition_overrides: {}, environments: [], task_role_arn: nil, cluster: nil, timeout: 3600 * 24, launch_timeout: 60 * 10, launch_retry: 10, retry_interval: 1, retry_interval_multiplier: 2, max_retry_interval: 120, execution_retry: 0)`
+```ruby
+Wrapbox.run(class_name, method_name, args,
+  runner: nil, # The "runner" value is used in the configuration  if it is nil.
+  config_name: nil, # "default" configuration is used if it is nil.
+  cluster: nil, # Available only for ECS runner. The "cluster" value in the configuration is used if it is nil.
+  launch_type: "EC2", # Available only for ECS runner. The "launch_type" value in the configuration is used if it is nil.
+  task_role_arn: nil, # Available only for ECS runner. The "task_role_arn" value in the configuration is used if it is nil.
+  execution_role_arn: nil, # Available only for ECS runner. The "execution_role_arn" value in the configuration is used if it is nil.
+  container_definition_overrides: {},
+  environments: [],
+  timeout: 3600 * 24, # Available only for ECS runner. # Available only for ECS runner.
+  launch_timeout: 60 * 10, # Available only for ECS runner.
+  launch_retry: 10, # Available only for ECS runner.
+  retry_interval: 1, # Available only for ECS runner.
+  retry_interval_multiplier: 2, # Available only for ECS runner.
+  max_retry_interval: 120, # Available only for ECS runner.
+  execution_retry: 0, # Available only for ECS runner.
+  keep_container: nil, # Available only for Docker runner. The "keep_container" value in the configuration is used if it is nil.
+)
+```
 
-following options is only for ECS.
+### `Wrapbox.run_cmd`
 
-- task_role_arn
-- cluster
-- timeout
-- launch_timeout
-- launch_retry
-
-If Wrapbox cannot create task, it puts custom metric data to CloudWatch.
-Custom metric data is `wrapbox/WaitingTaskCount` that has `ClusterName` dimension.
-And, it retry launching until retry count reach `launch_retry`.
-
-After task exited, Wrapbox checks main container exit code.
-If exit code is not 0, Wrapbox raise error.
+```ruby
+Wrapbox.run_cmd(*cmd,
+  runner: nil, # The "runner" value is used in the configuration  if it is nil.
+  config_name: nil, # "default" configuration is used if it is nil.
+  cluster: nil, # Available only for ECS runner. The "cluster" value in the configuration is used if it is nil.
+  launch_type: "EC2", # Available only for ECS runner. The "launch_type" value in the configuration is used if it is nil.
+  task_role_arn: nil, # Available only for ECS runner. The "task_role_arn" value in the configuration is used if it is nil.
+  execution_role_arn: nil, # Available only for ECS runner. The "execution_role_arn" value in the configuration is used if it is nil.
+  container_definition_overrides: {},
+  ignore_signal: false,
+  environments: [],
+  timeout: 3600 * 24, # Available only for ECS runner. # Available only for ECS runner.
+  launch_timeout: 60 * 10, # Available only for ECS runner.
+  launch_retry: 10, # Available only for ECS runner.
+  retry_interval: 1, # Available only for ECS runner.
+  retry_interval_multiplier: 2, # Available only for ECS runner.
+  max_retry_interval: 120, # Available only for ECS runner.
+  execution_retry: 0, # Available only for ECS runner.
+  keep_container: nil, # Available only for Docker runner. The "keep_container" value in the configuration is used if it is nil.
+)
+```
 
 ## Development
 

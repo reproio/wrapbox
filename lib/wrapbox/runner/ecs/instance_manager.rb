@@ -17,6 +17,7 @@ module Wrapbox
         end
 
         def pop_ec2_instance_id
+          Wrapbox.logger.debug("Wait until a new container instance are registered in \"#{@cluster}\" cluster")
           @queue.pop
         end
 
