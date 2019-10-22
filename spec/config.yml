@@ -38,3 +38,12 @@ ecs_with_launch_template:
           - key: Purpose
             value: wrapbox_spec
     wait_until_instance_terminated: false
+
+ecs_without_runner:
+  cluster: <%= ENV["ECS_CLUSTER"] %>
+  region: ap-northeast-1
+  container_definition:
+    image: joker1007/wrapbox
+    cpu: 256
+    memory: 256
+    essential: true

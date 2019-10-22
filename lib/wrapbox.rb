@@ -20,11 +20,11 @@ module Wrapbox
       yield configs
     end
 
-    def run(*args, runner: nil, config_name: nil, **options)
+    def run(*args, config_name: nil, **options)
       get_config(config_name).run(*args, **options)
     end
 
-    def run_cmd(*args, runner: nil, config_name: nil, **options)
+    def run_cmd(*args, config_name: nil, **options)
       get_config(config_name).run_cmd(*args, **options)
     end
 

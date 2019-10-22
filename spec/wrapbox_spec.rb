@@ -27,7 +27,7 @@ describe Wrapbox do
       Wrapbox.run_cmd(["ls ."], environments: [{name: "RAILS_ENV", value: "development"}])
     end
 
-    specify "executable on ECS overriding cluster", aws: true do
+    specify "executable on ECS overriding `cluster`", aws: true do
       default_clusters = [nil, "", "default"]
       if ENV["OVERRIDDEN_ECS_CLUSTER"].nil?
         raise "Specify OVERRIDDEN_ECS_CLUSTER"
@@ -36,6 +36,11 @@ describe Wrapbox do
         raise "Specify different values for ECS_CLUSTER and OVERRIDDEN_ECS_CLUSTER"
       end
       Wrapbox.run_cmd(["ls ."], environments: [{name: "RAILS_ENV", value: "development"}], cluster: ENV["OVERRIDDEN_ECS_CLUSTER"])
+    end
+
+    specify "executable on ECS overriding `runner`", aws: true do
+      expect(Wrapbox::Runner::Ecs).to receive(:new).and_call_original
+      Wrapbox.run_cmd(["ls ."], config_name: :ecs_without_runner, runner: "ecs", environments: [{name: "RAILS_ENV", value: "development"}])
     end
 
     specify "executable on ECS with launch template", aws: true do
@@ -77,6 +82,11 @@ describe Wrapbox do
 
     specify "executable on Docker" do
       Wrapbox.run_cmd(["ls ."], config_name: :docker, environments: [{name: "RAILS_ENV", value: "development"}])
+    end
+
+    specify "executable on Docker overriding `runner`" do
+      expect(Wrapbox::Runner::Docker).to receive(:new).and_call_original
+      Wrapbox.run_cmd(["ls ."], runner: "docker", environments: [{name: "RAILS_ENV", value: "development"}])
     end
 
     specify "executable on Docker and kill task" do
