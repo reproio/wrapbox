@@ -3,7 +3,7 @@ default:
   runner: ecs
   region: ap-northeast-1
   container_definition:
-    image: joker1007/wrapbox
+    image: joker1007/wrapbox@sha256:0925926e867244907f7f72b322a24312501719960d10c989a3847de4890ec55a
     cpu: 256
     memory: 256
     essential: true
@@ -15,7 +15,7 @@ docker:
   runner: docker
   keep_container: false
   container_definition:
-    image: joker1007/wrapbox
+    image: joker1007/wrapbox@sha256:0925926e867244907f7f72b322a24312501719960d10c989a3847de4890ec55a
     cpu: 600
     memory: 1024
 
@@ -24,7 +24,7 @@ ecs_with_launch_template:
   runner: ecs
   region: ap-northeast-1
   container_definition:
-    image: joker1007/wrapbox
+    image: joker1007/wrapbox@sha256:0925926e867244907f7f72b322a24312501719960d10c989a3847de4890ec55a
     cpu: 256
     memory: 256
     essential: true
@@ -38,3 +38,12 @@ ecs_with_launch_template:
           - key: Purpose
             value: wrapbox_spec
     wait_until_instance_terminated: false
+
+ecs_without_runner:
+  cluster: <%= ENV["ECS_CLUSTER"] %>
+  region: ap-northeast-1
+  container_definition:
+    image: joker1007/wrapbox@sha256:0925926e867244907f7f72b322a24312501719960d10c989a3847de4890ec55a
+    cpu: 256
+    memory: 256
+    essential: true

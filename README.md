@@ -186,6 +186,27 @@ After checking out the repo, run `bin/setup` to install dependencies. Then, run 
 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 
+### How to test
+
+The following environment variables are required to run all tests.
+
+Name | Description
+-----|----------------
+RUN_AWS_SPECS | Set "true" to run tests with `aws` set to true. You should also set credentials for AWS account to run ECS tasks.
+ECS_CLUSTER | A cluster used in tests. "default" cluster is used if this variable is not set.
+OVERRIDDEN_ECS_CLUSTER | A cluster used in tests that ensure `cluster` parameter.
+LAUNCH_TEMPLATE_ID | A launch template used in tests that ensure `launch_instances` configuration.
+
+
+```
+env \
+  RUN_AWS_SPECS=true \
+  ECS_CLUSTER='some_cluster' \
+  OVERRIDDEN_ECS_CLUSTER='another_cluster' \
+  LAUNCH_TEMPLATE_ID=lt-xxxxxxxxxxxxxxxxx \
+bundle exec rspec
+```
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/reproio/wrapbox.

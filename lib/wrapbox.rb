@@ -20,14 +20,19 @@ module Wrapbox
       yield configs
     end
 
-    def run(*args, runner: nil, config_name: nil, **options)
-      config = @configs.get(config_name)
-      config.run(*args, **options)
+    def run(*args, config_name: nil, **options)
+      get_config(config_name).run(*args, **options)
     end
 
-    def run_cmd(*args, runner: nil, config_name: nil, **options)
-      config = @configs.get(config_name)
-      config.run_cmd(*args, **options)
+    def run_cmd(*args, config_name: nil, **options)
+      get_config(config_name).run_cmd(*args, **options)
+    end
+
+    private
+
+    def get_config(config_name)
+      @configs.get(config_name) or
+        raise RuntimeError, %Q{The configuration "#{config_name}" is not registered}
     end
   end
 
