@@ -26,26 +26,19 @@ module Wrapbox
         # @return Aws::ECS::Types::Task
         def wait_task_running(task_arn, timeout: 0)
           Timeout.timeout(timeout) do
-            @mutex.synchronize do
-              @task_arn_to_described_result[task_arn] = nil
-              loop do
-                @cv.wait(@mutex)
-
-                result = @task_arn_to_described_result[task_arn]
-                if result[:failure]
-                  case result[:failure].reason
-                  when "MISSING"
-                    raise TaskMissing
-                  else
-                    raise UnknownFailure
-                  end
+            loop do
+              result = describe_task(task_arn)
+              if result[:failure]
+                case result[:failure].reason
+                when "MISSING"
+                  raise TaskMissing
+                else
+                  raise UnknownFailure
                 end
-                raise TaskStopped if result[:task].last_status == "STOPPED"
-
-                break if result[:task].last_status == "RUNNING"
               end
+              raise TaskStopped if result[:task].last_status == "STOPPED"
 
-              @task_arn_to_described_result.delete(task_arn)[:task]
+              return result[:task] if result[:task].last_status == "RUNNING"
             end
           end
         rescue Timeout::Error
@@ -55,26 +48,19 @@ module Wrapbox
         # @return Aws::ECS::Types::Task
         def wait_task_stopped(task_arn, timeout: 0)
           Timeout.timeout(timeout) do
-            @mutex.synchronize do
-              @task_arn_to_described_result[task_arn] = nil
-              loop do
-                @cv.wait(@mutex)
-
-                result = @task_arn_to_described_result[task_arn]
-                if result[:failure]
-                  case result[:failure].reason
-                  when "MISSING"
-                    raise TaskMissing
-                  else
-                    raise UnknownFailure
-                  end
+            result = nil
+            loop do
+              result = describe_task(task_arn)
+              if result[:failure]
+                case result[:failure].reason
+                when "MISSING"
+                  raise TaskMissing
+                else
+                  raise UnknownFailure
                 end
-                raise UnknownFailure if result[:failure]
-
-                break if result[:task].last_status == "STOPPED"
               end
 
-              @task_arn_to_described_result.delete(task_arn)[:task]
+              return result[:task] if result[:task].last_status == "STOPPED"
             end
           end
         rescue Timeout::Error
@@ -83,15 +69,25 @@ module Wrapbox
 
         private
 
-        def update_described_results(interval)
-          client = Aws::ECS::Client.new({ region: @region }.reject { |_, v| v.nil? })
+        def describe_task(task_arn)
+          @mutex.synchronize do
+            @task_arn_to_described_result[task_arn] = nil
+            @cv.wait(@mutex)
+            @task_arn_to_described_result[task_arn]
+          end
+        ensure
+          @mutex.synchronize do
+            @task_arn_to_described_result.delete(task_arn)
+          end
+        end
 
+        def update_described_results(interval)
           loop do
             @mutex.synchronize do
               unless @task_arn_to_described_result.empty?
                 begin
                   @task_arn_to_described_result.keys.each_slice(MAX_DESCRIBABLE_TASK_COUNT) do |task_arns|
-                    resp = client.describe_tasks(cluster: @cluster, tasks: task_arns)
+                    resp = ecs_client.describe_tasks(cluster: @cluster, tasks: task_arns)
                     resp.tasks.each do |task|
                       @task_arn_to_described_result[task.task_arn] = { task: task }
                     end
@@ -113,6 +109,10 @@ module Wrapbox
 
             sleep interval
           end
+        end
+
+        def ecs_client
+          @ecs_client ||= Aws::ECS::Client.new({ region: @region }.reject { |_, v| v.nil? })
         end
       end
     end
