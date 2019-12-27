@@ -68,7 +68,8 @@ module Wrapbox
         @volumes = options[:volumes]
         @placement_constraints = options[:placement_constraints] || []
         @placement_strategy = options[:placement_strategy]
-        @launch_type = options[:launch_type] || "EC2"
+        @capacity_provider_strategy = options[:capacity_provider_strategy] || []
+        @launch_type = options[:launch_type]
         @requires_compatibilities = options[:requires_compatibilities]
         @network_mode = options[:network_mode]
         @network_configuration = options[:network_configuration]
@@ -287,6 +288,7 @@ module Wrapbox
 
           begin
             resp = client.run_task(run_task_options)
+            puts resp.to_json
           rescue Aws::ECS::Errors::ThrottlingException
             @logger.warn("#{log_prefix}Failure: Rate exceeded.")
             raise LaunchFailure
@@ -506,18 +508,24 @@ module Wrapbox
         if ec2_instance_id
           additional_placement_constraints << { type: "memberOf", expression: "ec2InstanceId == #{ec2_instance_id}" }
         end
-        {
+        options = {
           cluster: @cluster,
           task_definition: task_definition_arn,
           overrides: overrides,
           placement_strategy: placement_strategy,
           placement_constraints: placement_constraints + additional_placement_constraints,
-          launch_type: @launch_type,
           network_configuration: network_configuration,
           started_by: "wrapbox-#{Wrapbox::VERSION}",
           enable_ecs_managed_tags: enable_ecs_managed_tags,
           propagate_tags: propagate_tags,
         }
+        if @capacity_provider_strategy.empty?
+          options[:launch_type] = @launch_type if @launch_type
+        else
+          options[:capacity_provider_strategy] = @capacity_provider_strategy
+        end
+        @logger.debug("#{log_prefix}Run task options:#{options.pretty_inspect}")
+        options
       end
 
       def build_error_message(task_definition_name, task_arn, task_status)
@@ -540,7 +548,7 @@ module Wrapbox
         method_option :environments, aliases: "-e"
         method_option :task_role_arn
         method_option :timeout, type: :numeric
-        method_option :launch_type, type: :string, default: "EC2", enum: ["EC2", "FARGATE"]
+        method_option :launch_type, type: :string, enum: ["EC2", "FARGATE"]
         method_option :launch_timeout, type: :numeric
         method_option :launch_retry, type: :numeric
         method_option :execution_retry, type: :numeric
