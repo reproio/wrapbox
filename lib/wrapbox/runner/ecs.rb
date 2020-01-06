@@ -524,7 +524,6 @@ module Wrapbox
         else
           options[:capacity_provider_strategy] = @capacity_provider_strategy
         end
-        @logger.debug("#{log_prefix}Run task options:#{options.pretty_inspect}")
         options
       end
 
