@@ -107,7 +107,6 @@ If exit code is not 0, Wrapbox raise error.
 | launch_type                | see http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#run_task-instance_method                 |
 | network_mode               | see http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
 | network_configuration      | see http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#run_task-instance_method                 |
-| launch_type                | see https://docs.aws.amazon.com/sdk-for-ruby/v3/api/Aws/ECS/Client.html#run_task-instance_method           |
 | capacity_provider_strategy | see https://docs.aws.amazon.com/sdk-for-ruby/v3/api/Aws/ECS/Client.html#run_task-instance_method           |
 | cpu                        | see http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
 | memory                     | see http://docs.aws.amazon.com/sdkforruby/api/Aws/ECS/Client.html#register_task_definition-instance_method |
