@@ -288,7 +288,6 @@ module Wrapbox
 
           begin
             resp = client.run_task(run_task_options)
-            puts resp.to_json
           rescue Aws::ECS::Errors::ThrottlingException
             @logger.warn("#{log_prefix}Failure: Rate exceeded.")
             raise LaunchFailure
