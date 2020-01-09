@@ -522,7 +522,7 @@ module Wrapbox
           options[:launch_type] = @launch_type if @launch_type
         else
           if @launch_type
-            @logger.warn("#{log_prefix}Ignore --launch_type option when specified capacity_provider_strategy in the configuration file")
+            @logger.warn("#{log_prefix}Ignore --launch_type and launch_type in the configuration file when specified capacity_provider_strategy in the configuration file")
           end
           options[:capacity_provider_strategy] = @capacity_provider_strategy
         end
