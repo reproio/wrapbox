@@ -291,6 +291,12 @@ module Wrapbox
           rescue Aws::ECS::Errors::ThrottlingException
             @logger.warn("#{log_prefix}Failure: Rate exceeded.")
             raise LaunchFailure
+          rescue Aws::ECS::Errors::InvalidParameterException => e
+            raise unless e.message.include?("com.amazonaws.services.ec2.model.AmazonEC2Exception: Request limit exceeded")
+            # ec2:DescribeSecurityGroups is called in ecs:RunTask if awsvpc mode is used
+            # cf. https://github.com/reproio/wrapbox/issues/32
+            @logger.warn("#{log_prefix}Failure: #{e.message}")
+            raise LaunchFailure
           end
           task = resp.tasks[0]
 
