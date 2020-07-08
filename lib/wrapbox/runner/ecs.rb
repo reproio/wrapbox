@@ -442,7 +442,7 @@ module Wrapbox
             execution_role_arn: @execution_role_arn,
             tags: tags,
           }).task_definition
-        rescue Aws::ECS::Errors::ClientException
+        rescue Aws::ECS::Errors::ClientException, Aws::ECS::Errors::ThrottlingException
           raise if register_retry_count > 2
           register_retry_count += 1
           sleep 2
