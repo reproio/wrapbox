@@ -27,6 +27,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency "docker-api"
   spec.add_runtime_dependency "multi_json"
   spec.add_runtime_dependency "thor"
+  spec.add_runtime_dependency "thwait"
 
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake"
