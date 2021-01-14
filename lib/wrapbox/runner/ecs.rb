@@ -561,6 +561,8 @@ module Wrapbox
         method_option :execution_retry, type: :numeric
         method_option :max_retry_interval, type: :numeric
         method_option :ignore_signal, type: :boolean, default: false, desc: "Even if receive a signal (like TERM, INT, QUIT), ECS Tasks continue running"
+        method_option :tags
+        method_option :propagate_tags, type: :string, enum: ["TASK_DEFINITION", "SERVICE"]
         method_option :verbose, aliases: "-v", type: :boolean, default: false, desc: "Verbose mode"
         def run_cmd(*args)
           Wrapbox.logger.level = :debug if options[:verbose]
@@ -568,6 +570,9 @@ module Wrapbox
           config = Wrapbox.configs[options[:config_name]]
           environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
             {name: k, value: v}
+          end
+          tags = options[:tags].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
+            {key: k, value: v}
           end
           run_options = {
             cluster: options[:cluster],
@@ -579,6 +584,8 @@ module Wrapbox
             execution_retry: options[:execution_retry],
             max_retry_interval: options[:max_retry_interval],
             ignore_signal: options[:ignore_signal],
+            tags: tags,
+            propagate_tags: options[:propagate_tags],
           }.reject { |_, v| v.nil? }
           if options[:cpu] || options[:memory] || options[:working_directory]
             container_definition_overrides = {cpu: options[:cpu], memory: options[:memory], working_directory: options[:working_directory]}.reject { |_, v| v.nil? }
