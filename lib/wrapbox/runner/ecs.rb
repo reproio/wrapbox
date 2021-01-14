@@ -51,7 +51,7 @@ module Wrapbox
       def self.split_overridable_options_and_parameters(options)
         opts = options.dup
         overridable_options = {}
-        %i[cluster launch_type task_role_arn execution_role_arn].each do |key|
+        %i[cluster launch_type task_role_arn execution_role_arn tags propagate_tags].each do |key|
           value = opts.delete(key)
           overridable_options[key] = value if value
         end
