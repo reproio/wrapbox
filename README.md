@@ -144,8 +144,8 @@ Wrapbox.run(class_name, method_name, args,
   launch_type: "EC2", # Available only for ECS runner. The "launch_type" value in the configuration is used if it is nil.
   task_role_arn: nil, # Available only for ECS runner. The "task_role_arn" value in the configuration is used if it is nil.
   execution_role_arn: nil, # Available only for ECS runner. The "execution_role_arn" value in the configuration is used if it is nil.
-  tags: nil, # Available only for ECS runner. The "tags" value in the configuration is used if it is not given.
-  propagate_tags: nil, # Available only for ECS runner. The "propagate_tags" value in the configuration is used if it is not given.
+  tags: nil, # Available only for ECS runner. The "tags" value in the configuration is used if it is nil.
+  propagate_tags: nil, # Available only for ECS runner. The "propagate_tags" value in the configuration is used if it is nil.
   container_definition_overrides: {},
   environments: [],
   timeout: 3600 * 24, # Available only for ECS runner. # Available only for ECS runner.
@@ -169,8 +169,8 @@ Wrapbox.run_cmd(*cmd,
   launch_type: "EC2", # Available only for ECS runner. The "launch_type" value in the configuration is used if it is nil.
   task_role_arn: nil, # Available only for ECS runner. The "task_role_arn" value in the configuration is used if it is nil.
   execution_role_arn: nil, # Available only for ECS runner. The "execution_role_arn" value in the configuration is used if it is nil.
-  tags: nil, # Available only for ECS runner. The "tags" value in the configuration is used if it is not given.
-  propagate_tags: nil, # Available only for ECS runner. The "propagate_tags" value in the configuration is used if it is not given.
+  tags: nil, # Available only for ECS runner. The "tags" value in the configuration is used if it is nil.
+  propagate_tags: nil, # Available only for ECS runner. The "propagate_tags" value in the configuration is used if it is nil.
   container_definition_overrides: {},
   ignore_signal: false,
   environments: [],
