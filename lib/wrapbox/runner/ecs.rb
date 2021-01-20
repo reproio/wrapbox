@@ -561,7 +561,7 @@ module Wrapbox
         method_option :execution_retry, type: :numeric
         method_option :max_retry_interval, type: :numeric
         method_option :ignore_signal, type: :boolean, default: false, desc: "Even if receive a signal (like TERM, INT, QUIT), ECS Tasks continue running"
-        method_option :tags
+        method_option :tags, type: :string, alias: "-t", repeatable: true
         method_option :propagate_tags, type: :string, enum: ["TASK_DEFINITION", "SERVICE"]
         method_option :verbose, aliases: "-v", type: :boolean, default: false, desc: "Verbose mode"
         def run_cmd(*args)
@@ -571,7 +571,8 @@ module Wrapbox
           environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
             {name: k, value: v}
           end
-          tags = options[:tags].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
+          tags = options.fetch(:tags, []).map do |kv|
+            k, v = kv.split("=", 2)
             {key: k, value: v}
           end
           run_options = {
