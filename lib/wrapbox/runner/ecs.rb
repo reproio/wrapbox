@@ -51,7 +51,7 @@ module Wrapbox
       def self.split_overridable_options_and_parameters(options)
         opts = options.dup
         overridable_options = {}
-        %i[cluster launch_type task_role_arn execution_role_arn].each do |key|
+        %i[cluster launch_type task_role_arn execution_role_arn tags propagate_tags].each do |key|
           value = opts.delete(key)
           overridable_options[key] = value if value
         end
@@ -561,6 +561,8 @@ module Wrapbox
         method_option :execution_retry, type: :numeric
         method_option :max_retry_interval, type: :numeric
         method_option :ignore_signal, type: :boolean, default: false, desc: "Even if receive a signal (like TERM, INT, QUIT), ECS Tasks continue running"
+        method_option :tags, type: :string, alias: "-t", repeatable: true
+        method_option :propagate_tags, type: :string, enum: ["TASK_DEFINITION", "SERVICE"]
         method_option :verbose, aliases: "-v", type: :boolean, default: false, desc: "Verbose mode"
         def run_cmd(*args)
           Wrapbox.logger.level = :debug if options[:verbose]
@@ -569,6 +571,10 @@ module Wrapbox
           environments = options[:environments].to_s.split(/,\s*/).map { |kv| kv.split("=") }.map do |k, v|
             {name: k, value: v}
           end
+          tags = options.fetch(:tags, []).map do |kv|
+            k, v = kv.split("=", 2)
+            {key: k, value: v}
+          end.presence
           run_options = {
             cluster: options[:cluster],
             task_role_arn: options[:task_role_arn],
@@ -579,6 +585,8 @@ module Wrapbox
             execution_retry: options[:execution_retry],
             max_retry_interval: options[:max_retry_interval],
             ignore_signal: options[:ignore_signal],
+            tags: tags,
+            propagate_tags: options[:propagate_tags],
           }.reject { |_, v| v.nil? }
           if options[:cpu] || options[:memory] || options[:working_directory]
             container_definition_overrides = {cpu: options[:cpu], memory: options[:memory], working_directory: options[:working_directory]}.reject { |_, v| v.nil? }
