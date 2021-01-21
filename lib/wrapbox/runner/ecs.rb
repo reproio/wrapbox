@@ -574,7 +574,7 @@ module Wrapbox
           tags = options.fetch(:tags, []).map do |kv|
             k, v = kv.split("=", 2)
             {key: k, value: v}
-          end
+          end.presence
           run_options = {
             cluster: options[:cluster],
             task_role_arn: options[:task_role_arn],
