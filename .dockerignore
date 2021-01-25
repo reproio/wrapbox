@@ -7,6 +7,5 @@ doc
 pkg
 spec/reports
 tmp
-.travis.yml
 
 .envrc
