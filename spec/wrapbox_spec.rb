@@ -5,7 +5,22 @@ describe Wrapbox do
     config = Wrapbox.configs[:default]
     expect(config.cluster).to eq(ENV["ECS_CLUSTER"])
     expect(config.region).to eq("ap-northeast-1")
+    expect(config.enable_execute_command).to be_falsey
     expect(config.container_definition[:cpu]).to be_a(Integer)
+  end
+
+  describe 'enable_execute_command option is true' do
+    specify "config value is true" do
+      config = Wrapbox.configs[:ecs_enable_execute_command]
+      expect(config.enable_execute_command).to be_truthy
+    end
+  end
+
+  describe 'enable_execute_command option is false' do
+    specify "config value is false" do
+      config = Wrapbox.configs[:ecs_disable_execute_command]
+      expect(config.enable_execute_command).to be_falsey
+    end
   end
 
   describe ".run" do
