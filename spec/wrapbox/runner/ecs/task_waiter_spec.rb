@@ -34,7 +34,7 @@ describe Wrapbox::Runner::Ecs::TaskWaiter do
       })
     end
 
-    it "waits until specifined tasks run" do
+    it "waits until specified tasks run" do
       running_task_th = start_thread { waiter.wait_task_running(running_task_arn) }
       stopped_task_th = start_thread { waiter.wait_task_running(stopped_task_arn) }
       missing_task_th = start_thread { waiter.wait_task_running(missing_task_arn) }
@@ -73,7 +73,7 @@ describe Wrapbox::Runner::Ecs::TaskWaiter do
       })
     end
 
-    it "waits until specifined tasks stop" do
+    it "waits until specified tasks stop" do
       stopped_task_th = start_thread { waiter.wait_task_stopped(stopped_task_arn) }
       missing_task_th = start_thread { waiter.wait_task_stopped(missing_task_arn) }
 
