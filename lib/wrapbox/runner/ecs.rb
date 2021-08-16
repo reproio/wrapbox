@@ -117,7 +117,7 @@ module Wrapbox
         @logger = Wrapbox.logger
         if options[:log_fetcher]
           type = options[:log_fetcher][:type]
-          @log_fetcher = LogFetcher.new(type, options[:log_fetcher])
+          @log_fetcher = LogFetcher.new(type, **options[:log_fetcher])
         end
       end
 
