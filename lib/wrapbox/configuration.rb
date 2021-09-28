@@ -69,7 +69,7 @@ module Wrapbox
         config["enable_ecs_managed_tags"],
         config["propagate_tags"],
         config["launch_instances"]&.deep_symbolize_keys,
-        config["enable_execute_command"] || nil
+        config["enable_execute_command"]
       )
     end
 
