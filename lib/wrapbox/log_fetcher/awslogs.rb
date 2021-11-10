@@ -59,15 +59,14 @@ module Wrapbox
               @max_timestamp = ev.timestamp if @max_timestamp < ev.timestamp
             end
           end
-          Thread.start do
-            @displayed_event_ids.each do |event_id, ts|
-              if ts < (Time.now.to_f - 600) * 1000
-                @displayed_event_ids.delete(event_id)
-              end
+
+          @displayed_event_ids.each do |event_id, ts|
+            if ts < (Time.now.to_f - 600) * 1000
+              @displayed_event_ids.delete(event_id)
             end
-          end.tap do
-            sleep @delay
-          end.join
+          end
+
+          sleep @delay
         end
       end
 
