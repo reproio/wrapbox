@@ -45,7 +45,6 @@ module Wrapbox
           log_group_name: @log_group,
           log_stream_names: log_stream_names,
           filter_pattern: @filter_pattern,
-          interleaved: true,
         }.compact
         @max_timestamp = ((Time.now.to_f - 120) * 1000).round
 
@@ -67,7 +66,7 @@ module Wrapbox
               end
             end
           end.tap do
-            sleep @delay 
+            sleep @delay
           end.join
         end
       end
