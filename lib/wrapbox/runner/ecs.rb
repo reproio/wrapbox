@@ -294,9 +294,12 @@ module Wrapbox
             @logger.warn("#{log_prefix}Failure: Rate exceeded.")
             raise LaunchFailure
           rescue Aws::ECS::Errors::InvalidParameterException => e
-            raise unless e.message.include?("Request limit exceeded")
-            # ec2:DescribeSecurityGroups is called in ecs:RunTask if awsvpc mode is used
-            # cf. https://github.com/reproio/wrapbox/issues/32
+            # ec2:DescribeSecurityGroups is called in ecs:RunTask when awsvpc mode is used,
+            # and some errors like "Request limit exceeded", "InternalError" etc. caused by
+            # ec2:DescribeSecurityGroups are retriable.
+            # cf. https://github.com/reproio/wrapbox/issues/32, https://github.com/reproio/wrapbox/issues/43
+            raise if !e.message.include?("Request limit exceeded") && !e.message.include?("InternalError")
+
             @logger.warn("#{log_prefix}Failure: #{e.message}")
             raise LaunchFailure
           end
