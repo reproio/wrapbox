@@ -50,20 +50,23 @@ module Wrapbox
 
         until @stop do
           filter_log_opts[:start_time] = @max_timestamp + 1
-          resp = client.filter_log_events(filter_log_opts) rescue nil
-          resp&.each do |r|
-            r.events.each do |ev|
-              next if @displayed_event_ids.member?(ev.event_id)
-              display_message(ev)
-              @displayed_event_ids[ev.event_id] = ev.timestamp
-              @max_timestamp = ev.timestamp if @max_timestamp < ev.timestamp
+          begin
+            client.filter_log_events(filter_log_opts).each do |r|
+              r.events.each do |ev|
+                next if @displayed_event_ids.member?(ev.event_id)
+                display_message(ev)
+                @displayed_event_ids[ev.event_id] = ev.timestamp
+                @max_timestamp = ev.timestamp if @max_timestamp < ev.timestamp
+              end
             end
-          end
 
-          @displayed_event_ids.each do |event_id, ts|
-            if ts < (Time.now.to_f - 600) * 1000
-              @displayed_event_ids.delete(event_id)
+            @displayed_event_ids.each do |event_id, ts|
+              if ts < (Time.now.to_f - 600) * 1000
+                @displayed_event_ids.delete(event_id)
+              end
             end
+          rescue Aws::CloudWatchLogs::Errors::ThrottlingException
+            Wrapbox.logger.warn("Failed to fetch logs due to Aws::CloudWatchLogs::Errors::ThrottlingException")
           end
 
           sleep @delay
