@@ -69,3 +69,25 @@ ecs_disable_execute_command:
     cpu: 256
     memory: 256
     essential: true
+
+ecs_with_awslogs_fetcher:
+  cluster: <%= ENV["ECS_CLUSTER"] %>
+  runner: ecs
+  region: ap-northeast-1
+  execution_role_arn: <%= ENV["EXECUTION_ROLE_ARN"] %>
+  log_fetcher:
+    type: awslogs
+    log_group: /ecs/wrapbox
+    log_stream_prefix: ecs_with_log_fetcher
+    region: ap-northeast-1
+  container_definition:
+    image: joker1007/wrapbox@sha256:0925926e867244907f7f72b322a24312501719960d10c989a3847de4890ec55a
+    cpu: 256
+    memory: 256
+    essential: true
+    log_configuration:
+      log_driver: awslogs
+      options:
+        awslogs-group: /ecs/wrapbox
+        awslogs-region: ap-northeast-1
+        awslogs-stream-prefix: ecs_with_log_fetcher

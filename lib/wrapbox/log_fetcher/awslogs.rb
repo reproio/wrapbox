@@ -65,6 +65,9 @@ module Wrapbox
                 @displayed_event_ids.delete(event_id)
               end
             end
+          rescue Aws::CloudWatchLogs::Errors::ResourceNotFoundException
+            # Ignore the error because it is an error like "The specified log stream does not exist.",
+            # which occurs when the log stream hasn't been created yet, that is, the task hasn't started yet.
           rescue Aws::CloudWatchLogs::Errors::ThrottlingException
             Wrapbox.logger.warn("Failed to fetch logs due to Aws::CloudWatchLogs::Errors::ThrottlingException")
           end
