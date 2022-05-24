@@ -47,7 +47,8 @@ module Wrapbox
         :enable_ecs_managed_tags,
         :tags,
         :propagate_tags,
-        :enable_execute_command
+        :enable_execute_command,
+        :runtime_platform
 
       def self.split_overridable_options_and_parameters(options)
         opts = options.dup
@@ -445,6 +446,7 @@ module Wrapbox
             requires_compatibilities: requires_compatibilities,
             task_role_arn: @task_role_arn,
             execution_role_arn: @execution_role_arn,
+            runtime_platform: runtime_platform,
             tags: tags,
           }).task_definition
         rescue Aws::ECS::Errors::ClientException, Aws::ECS::Errors::ThrottlingException
