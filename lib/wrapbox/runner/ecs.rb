@@ -81,6 +81,7 @@ module Wrapbox
         @tags = options[:tags]
         @propagate_tags = options[:propagate_tags]
         @enable_execute_command = options[:enable_execute_command]
+        @runtime_platform = options[:runtime_platform]
         if options[:launch_instances]
           @instance_manager = Wrapbox::Runner::Ecs::InstanceManager.new(@cluster, @region, options[:launch_instances])
         end
