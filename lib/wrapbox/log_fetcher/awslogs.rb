@@ -27,6 +27,14 @@ module Wrapbox
 
       def run(task:)
         @loop_thread = Thread.start do
+          # It smees that task.contaienrs is empty
+          # if capacity_provider_strategy is specified and there are no remaining capacity
+          while task.containers.empty?
+            Wrapbox.logger.warn("The task has no containers, so fetch it again")
+            sleep 10
+            task = ecs_client.describe_tasks(cluster: task.cluster_arn, tasks: [task.task_arn]).tasks.first
+          end
+
           main_loop(task)
         end
       end
