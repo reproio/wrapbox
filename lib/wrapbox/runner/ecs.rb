@@ -81,7 +81,7 @@ module Wrapbox
         @propagate_tags = options[:propagate_tags]
         @enable_execute_command = options[:enable_execute_command]
         if options[:launch_instances]
-          @instance_manager = Wrapbox::Runner::Ecs::InstanceManager.new(@cluster, @region, options[:launch_instances])
+          @instance_manager = Wrapbox::Runner::Ecs::InstanceManager.new(@cluster, @region, **options[:launch_instances])
         end
         @task_waiter = Wrapbox::Runner::Ecs::TaskWaiter.new(cluster: @cluster, region: @region, delay: WAIT_DELAY)
 
