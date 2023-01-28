@@ -5,9 +5,8 @@ module Wrapbox
   module Runner
     class Ecs
       class InstanceManager
-        def initialize(cluster, region, launch_template:, instance_type: nil, tag_specifications: nil, wait_until_instance_terminated: true)
+        def initialize(cluster, launch_template:, instance_type: nil, tag_specifications: nil, wait_until_instance_terminated: true)
           @cluster = cluster
-          @region = region
           @launch_template = launch_template
           @instance_type = instance_type
           @tag_specifications = tag_specifications
@@ -80,11 +79,11 @@ module Wrapbox
         private
 
         def ecs_client
-          @ecs_client ||= Aws::ECS::Client.new({ region: @region }.reject { |_, v| v.nil? })
+          @ecs_client ||= Aws::ECS::Client.new
         end
 
         def ec2_client
-          @ec2_client ||= Aws::EC2::Client.new({ region: @region }.reject { |_, v| v.nil? })
+          @ec2_client ||= Aws::EC2::Client.new
         end
       end
     end

@@ -14,9 +14,8 @@ module Wrapbox
         class UnknownFailure < WaitFailure; end
         class WaitTimeout < WaitFailure; end
 
-        def initialize(cluster:, region:, delay:)
+        def initialize(cluster:, delay:)
           @cluster = cluster
-          @region = region
           @task_arn_to_described_result = {}
           @mutex = Mutex.new
           @cv = ConditionVariable.new
@@ -112,7 +111,7 @@ module Wrapbox
         end
 
         def ecs_client
-          @ecs_client ||= Aws::ECS::Client.new({ region: @region }.reject { |_, v| v.nil? })
+          @ecs_client ||= Aws::ECS::Client.new
         end
       end
     end

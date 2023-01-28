@@ -32,7 +32,6 @@ module Wrapbox
       attr_reader \
         :name,
         :revision,
-        :region,
         :container_definitions,
         :volumes,
         :placement_constraints,
@@ -61,11 +60,11 @@ module Wrapbox
       end
 
       def initialize(options)
+        setup_aws_config(options)
         @name = options[:name]
         @task_definition_name = options[:task_definition_name]
         @revision = options[:revision]
         @cluster = options[:cluster]
-        @region = options[:region]
         @volumes = options[:volumes]
         @placement_constraints = options[:placement_constraints] || []
         @placement_strategy = options[:placement_strategy]
@@ -81,9 +80,9 @@ module Wrapbox
         @propagate_tags = options[:propagate_tags]
         @enable_execute_command = options[:enable_execute_command]
         if options[:launch_instances]
-          @instance_manager = Wrapbox::Runner::Ecs::InstanceManager.new(@cluster, @region, **options[:launch_instances])
+          @instance_manager = Wrapbox::Runner::Ecs::InstanceManager.new(@cluster, **options[:launch_instances])
         end
-        @task_waiter = Wrapbox::Runner::Ecs::TaskWaiter.new(cluster: @cluster, region: @region, delay: WAIT_DELAY)
+        @task_waiter = Wrapbox::Runner::Ecs::TaskWaiter.new(cluster: @cluster, delay: WAIT_DELAY)
 
         @container_definitions = options[:container_definition] ? [options[:container_definition]] : options[:container_definitions] || []
         @container_definitions.concat(options[:additional_container_definitions]) if options[:additional_container_definitions] # deprecated
@@ -463,20 +462,22 @@ module Wrapbox
         cmd_index ? "##{cmd_index} " : ""
       end
 
-      def client
-        return @client if @client
+      def setup_aws_config(options)
+        if options[:region]
+          Aws.config.update(region: options[:region])
+        end
 
-        options = {}
-        options[:region] = region if region
-        @client = Aws::ECS::Client.new(options)
+        if ENV['AWS_ACCESS_KEY_ID'] && ENV['AWS_SECRET_ACCESS_KEY']
+          Aws.config.update(credentials: Aws::Credentials.new(ENV['AWS_ACCESS_KEY_ID'], ENV['AWS_SECRET_ACCESS_KEY'], ENV['AWS_SESSION_TOKEN']))
+        end
+      end
+
+      def client
+        @client ||= Aws::ECS::Client.new
       end
 
       def cloud_watch_client
-        return @cloud_watch_client if @cloud_watch_client
-
-        options = {}
-        options[:region] = region if region
-        @cloud_watch_client = Aws::CloudWatch::Client.new(options)
+        @cloud_watch_client ||= Aws::CloudWatch::Client.new
       end
 
       def put_waiting_task_count_metric
