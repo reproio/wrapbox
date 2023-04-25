@@ -1,7 +1,10 @@
-default:
+base: &base
   cluster: <%= ENV["ECS_CLUSTER"] %>
   runner: ecs
   region: ap-northeast-1
+
+default:
+  <<: *base
   container_definition:
     image: joker1007/wrapbox@sha256:0925926e867244907f7f72b322a24312501719960d10c989a3847de4890ec55a
     cpu: 256
@@ -20,9 +23,7 @@ docker:
     memory: 1024
 
 ecs_with_launch_template:
-  cluster: <%= ENV["ECS_CLUSTER"] %>
-  runner: ecs
-  region: ap-northeast-1
+  <<: *base
   container_definition:
     image: joker1007/wrapbox@sha256:0925926e867244907f7f72b322a24312501719960d10c989a3847de4890ec55a
     cpu: 256
@@ -49,9 +50,7 @@ ecs_without_runner:
     essential: true
 
 ecs_enable_execute_command:
-  cluster: <%= ENV["ECS_CLUSTER"] %>
-  runner: ecs
-  region: ap-northeast-1
+  <<: *base
   enable_execute_command: true
   container_definition:
     image: joker1007/wrapbox@sha256:0925926e867244907f7f72b322a24312501719960d10c989a3847de4890ec55a
@@ -60,9 +59,7 @@ ecs_enable_execute_command:
     essential: true
 
 ecs_disable_execute_command:
-  cluster: <%= ENV["ECS_CLUSTER"] %>
-  runner: ecs
-  region: ap-northeast-1
+  <<: *base
   enable_execute_command: false
   container_definition:
     image: joker1007/wrapbox@sha256:0925926e867244907f7f72b322a24312501719960d10c989a3847de4890ec55a
@@ -71,9 +68,7 @@ ecs_disable_execute_command:
     essential: true
 
 ecs_with_awslogs_fetcher:
-  cluster: <%= ENV["ECS_CLUSTER"] %>
-  runner: ecs
-  region: ap-northeast-1
+  <<: *base
   execution_role_arn: <%= ENV["EXECUTION_ROLE_ARN"] %>
   log_fetcher:
     type: awslogs

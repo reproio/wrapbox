@@ -8,7 +8,12 @@ module Wrapbox
     end
 
     def load_yaml(yaml_file)
-      configs = YAML.load(ERB.new(File.read(yaml_file)).result)
+      file = ERB.new(File.read(yaml_file)).result
+      configs = if Gem::Version.new(Psych::VERSION) >= Gem::Version.new("4.0.0")
+        YAML.load(file, aliases: true)
+      else
+        YAML.load(file)
+      end
       configs.each do |name, configuration|
         load_config(name, configuration.merge("name" => name))
       end
