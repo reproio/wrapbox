@@ -101,6 +101,8 @@ module Wrapbox
                   end
 
                   @cv.broadcast
+                rescue Seahorse::Client::NetworkingError => e
+                  Wrapbox.logger.warn("Failed to connect to ECS #{e}")
                 rescue Aws::ECS::Errors::ThrottlingException
                   Wrapbox.logger.warn("Failed to describe tasks due to Aws::ECS::Errors::ThrottlingException")
                 end
