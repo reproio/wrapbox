@@ -28,6 +28,7 @@ module Wrapbox
       WAIT_DELAY = 5
       TERM_TIMEOUT = 120
       HOST_TERMINATED_REASON_REGEXP = /Host EC2.*terminated/
+      SPOT_TASK_INTERRUPTED = /Your Spot Task was interrupted/
 
       attr_reader \
         :name,
@@ -243,12 +244,17 @@ module Wrapbox
 
           # If exit_code is nil, Container is force killed or ECS failed to launch Container by Irregular situation
           error_message = build_error_message(task_definition_name, task.task_arn, task_status)
+          if task_status[:stopped_reason] =~ SPOT_TASK_INTERRUPTED
+            @logger.warn("#{log_prefix}#{task_status[:stopped_reason]}")
+            raise ContainerAbnormalEnd, error_message
+          end
           raise ContainerAbnormalEnd, error_message unless task_status[:exit_code]
           raise ExecutionFailure, error_message unless task_status[:exit_code] == 0
 
           true
         rescue ContainerAbnormalEnd
           retry if task_status[:stopped_reason] =~ HOST_TERMINATED_REASON_REGEXP
+          retry if task_status[:stopped_reason] =~ SPOT_TASK_INTERRUPTED
 
           if execution_try_count >= parameter.execution_retry
             raise
