@@ -67,6 +67,17 @@ ecs_disable_execute_command:
     memory: 256
     essential: true
 
+ecs_with_runtime_platform:
+  <<: *base
+  runtime_platform:
+    cpu_architecture: ARM64
+    operating_system_family: LINUX
+  container_definition:
+    image: joker1007/wrapbox@sha256:0925926e867244907f7f72b322a24312501719960d10c989a3847de4890ec55a
+    cpu: 256
+    memory: 256
+    essential: true
+
 ecs_with_awslogs_fetcher:
   <<: *base
   execution_role_arn: <%= ENV["EXECUTION_ROLE_ARN"] %>

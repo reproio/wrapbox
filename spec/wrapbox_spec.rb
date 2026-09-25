@@ -23,6 +23,18 @@ describe Wrapbox do
     end
   end
 
+  describe 'runtime_platform option' do
+    specify "config value is loaded with symbolized keys" do
+      config = Wrapbox.configs[:ecs_with_runtime_platform]
+      expect(config.runtime_platform).to eq(cpu_architecture: "ARM64", operating_system_family: "LINUX")
+    end
+
+    specify "config value is nil when not specified" do
+      config = Wrapbox.configs[:default]
+      expect(config.runtime_platform).to be_nil
+    end
+  end
+
   describe ".run" do
     specify "executable on ECS", aws: true do
       Wrapbox.run("TestJob", :perform, ["arg1", ["arg2", "arg3"]], environments: [{name: "RAILS_ENV", value: "development"}])
