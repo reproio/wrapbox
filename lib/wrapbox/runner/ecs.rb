@@ -48,7 +48,8 @@ module Wrapbox
         :enable_ecs_managed_tags,
         :tags,
         :propagate_tags,
-        :enable_execute_command
+        :enable_execute_command,
+        :runtime_platform
 
       def self.split_overridable_options_and_parameters(options)
         opts = options.dup
@@ -81,6 +82,7 @@ module Wrapbox
         @tags = options[:tags]
         @propagate_tags = options[:propagate_tags]
         @enable_execute_command = options[:enable_execute_command]
+        @runtime_platform = options[:runtime_platform]
         if options[:launch_instances]
           @instance_manager = Wrapbox::Runner::Ecs::InstanceManager.new(@cluster, @region, **options[:launch_instances])
         end
@@ -449,6 +451,7 @@ module Wrapbox
             container_definitions: overrided_container_definitions,
             volumes: volumes,
             requires_compatibilities: requires_compatibilities,
+            runtime_platform: runtime_platform,
             task_role_arn: @task_role_arn,
             execution_role_arn: @execution_role_arn,
             tags: tags,
